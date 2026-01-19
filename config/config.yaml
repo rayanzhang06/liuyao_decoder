@@ -3,65 +3,67 @@ llm:
   default_client: "kimi"
 
   clients:
-    openai:
-      api_key: ${OPENAI_API_KEY}
-      model: "gpt-4-turbo-preview"
+    # 国内提供商（推荐）
+    kimi:
+      api_key: ${KIMI_API_KEY}
+      model: "moonshot-v1-128k"  # 最佳模型：128K context
       temperature: 0.7
-      max_tokens: 4000
-      timeout: 60
-
-    anthropic:
-      api_key: ${ANTHROPIC_API_KEY}
-      model: "claude-3-opus-20240229"
-      temperature: 0.7
-      max_tokens: 4000
-      timeout: 60
-
-    deepseek:
-      api_key: ${DEEPSEEK_API_KEY}
-      model: "deepseek-chat"
-      temperature: 0.7
-      max_tokens: 4000
-      timeout: 60
-
-    gemini:
-      api_key: ${GEMINI_API_KEY}
-      model: "gemini-pro"
-      temperature: 0.7
-      max_tokens: 4000
-      timeout: 60
+      max_tokens: 8000
+      timeout: 90
 
     glm:
       api_key: ${GLM_API_KEY}
-      model: "glm-4"
+      model: "glm-4-plus"  # 最佳模型：GLM-4 Plus
       temperature: 0.7
-      max_tokens: 4000
-      timeout: 60
+      max_tokens: 8000
+      timeout: 90
 
-    kimi:
-      api_key: ${KIMI_API_KEY}
-      model: "moonshot-v1-8k"
+    deepseek:
+      api_key: ${DEEPSEEK_API_KEY}
+      model: "deepseek-chat"  # 当前最佳模型
       temperature: 0.7
-      max_tokens: 4000
-      timeout: 60
+      max_tokens: 8000
+      timeout: 90
+
+    # 国际提供商（需要代理）
+    openai:
+      api_key: ${OPENAI_API_KEY}
+      model: "gpt-4o"  # 最新最强模型
+      temperature: 0.7
+      max_tokens: 8000
+      timeout: 90
+
+    anthropic:
+      api_key: ${ANTHROPIC_API_KEY}
+      model: "claude-sonnet-4-5-20250929"  # 最新最强模型
+      temperature: 0.7
+      max_tokens: 8000
+      timeout: 90
+
+    gemini:
+      api_key: ${GEMINI_API_KEY}
+      model: "gemini-2.0-flash-exp"  # 最新模型
+      temperature: 0.7
+      max_tokens: 8000
+      timeout: 90
 
 # Agent Configuration
 agents:
   traditional:
     llm_client: "kimi"
-    model: "moonshot-v1-8k"
+    model: "moonshot-v1-128k"
     school: "传统正宗派"
     prompt_file: "prompts/traditional.md"
 
   xiangshu:
     llm_client: "glm"
-    model: "glm-4"
+    model: "glm-4-plus"
     school: "象数派"
     prompt_file: "prompts/xiangshu.md"
 
   mangpai:
     llm_client: "kimi"
-    model: "moonshot-v1-8k"
+    model: "moonshot-v1-128k"
     school: "盲派"
     prompt_file: "prompts/mangpai.md"
 

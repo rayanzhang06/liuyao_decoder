@@ -16,7 +16,8 @@ class BaseAgent(ABC):
                  name: str,
                  school: SchoolType,
                  llm_client: BaseLLMClient,
-                 prompt_path: str):
+                 prompt_path: str,
+                 literature_search: Optional['LiteratureSearch'] = None):
         """
         初始化 Agent
 
@@ -25,11 +26,13 @@ class BaseAgent(ABC):
             school: 流派类型
             llm_client: LLM 客户端
             prompt_path: Prompt 文件路径
+            literature_search: 可选的文献搜索实例
         """
         self.name = name
         self.school = school
         self.llm_client = llm_client
         self.prompt_path = prompt_path
+        self.literature_search = literature_search
 
         # 加载 system prompt
         self.system_prompt = self._load_system_prompt()
@@ -295,6 +298,95 @@ class BaseAgent(ABC):
             response.confidence = max(0, min(10, response.confidence))
 
         return True
+
+    def _search_literature(self, debate_history: List[Dict[str, Any]], round_number: int) -> List:
+        """
+        搜索文献引用
+
+        Args:
+            debate_history: 辩论历史
+            round_number: 当前轮次
+
+        Returns:
+            List: 文献引用列表
+        """
+        if not self.literature_search:
+            return []
+
+        # 提取关键词
+        keywords = self._extract_keywords(debate_history, round_number)
+
+        if not keywords:
+            return []
+
+        # 搜索文献
+        try:
+            refs = self.literature_search.search(self.school, keywords, top_k=3)
+            logger.debug(f"{self.name} 搜索到 {len(refs)} 条文献引用")
+            return refs
+        except Exception as e:
+            logger.error(f"{self.name} 文献搜索失败: {e}")
+            return []
+
+    def _extract_keywords(self, debate_history: List[Dict[str, Any]], round_number: int) -> List[str]:
+        """
+        从辩论历史中提取关键词
+
+        Args:
+            debate_history: 辩论历史
+            round_number: 当前轮次
+
+        Returns:
+            List[str]: 关键词列表
+        """
+        keywords = []
+
+        # 从最近几轮中提取关键词
+        recent_rounds = debate_history[-3:] if len(debate_history) >= 3 else debate_history
+
+        for round_data in recent_rounds:
+            for resp in round_data.get('responses', []):
+                content = resp.get('content', '')
+
+                # 提取关键概念（简单实现）
+                # 查找"用神"、"官鬼"、"妻财"等六爻术语
+                terms = re.findall(r'(用神|官鬼|妻财|兄弟|子孙|父母|世爻|应爻|动爻|空亡|月建|日辰)', content)
+                keywords.extend(terms)
+
+                # 提取问题关键词
+                if round_number == 0:
+                    # 初始轮，从问题中提取
+                    question = content.split('问题')[-1].split('\n')[0] if '问题' in content else ''
+                    if question:
+                        keywords.extend(re.findall(r'[\u4e00-\u9fa5]{2,}', question))
+
+        # 去重并返回前10个
+        unique_keywords = list(set(keywords))[:10]
+        return unique_keywords
+
+    def _format_literature_refs(self, refs: List) -> str:
+        """
+        格式化文献引用用于prompt
+
+        Args:
+            refs: 文献引用列表
+
+        Returns:
+            str: 格式化后的文献引用文本
+        """
+        if not refs:
+            return ""
+
+        formatted = "\n\n## 本轮文献检索结果\n\n"
+
+        for i, ref in enumerate(refs, 1):
+            formatted += f"### 文献 {i}\n"
+            formatted += f"- **书名**：《{ref.book_title}》\n"
+            formatted += f"- **章节**：{ref.volume}·{ref.chapter}\n"
+            formatted += f"- **原文**：{ref.original_text}\n"
+            formatted += f"- **关键词**：{ref.keyword}\n\n"
+
+        return formatted
 
 
 import re  # 需要导入 re 模块

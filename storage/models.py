@@ -4,6 +4,13 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 from enum import Enum
 
+# SQLAlchemy ORM models
+from sqlalchemy import Column, Integer, String, DateTime, Float, Text, ForeignKey
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship
+
+Base = declarative_base()
+
 
 class SchoolType(str, Enum):
     """流派类型"""
@@ -132,3 +139,71 @@ class AgentResponseRecord(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ==================== SQLAlchemy ORM Models ====================
+
+class DebateRecordORM(Base):
+    """辩论记录表（SQLAlchemy ORM）"""
+    __tablename__ = 'debate_records'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    timestamp = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    hexagram_input = Column(Text, nullable=False)  # JSON字符串
+    debate_history = Column(Text, nullable=False)  # JSON字符串
+    final_report = Column(Text)  # Markdown格式
+
+    convergence_round = Column(Integer)  # 收敛轮次
+    convergence_score = Column(Float)  # 收敛分数
+    total_tokens_used = Column(Integer, default=0)  # 总token使用量
+
+    # 关系
+    responses = relationship("AgentResponseRecordORM", back_populates="debate",
+                           cascade="all, delete-orphan")
+
+    def to_pydantic(self) -> 'DebateRecord':
+        """转换为Pydantic模型"""
+        return DebateRecord(
+            id=self.id,
+            timestamp=self.timestamp,
+            hexagram_input=self.hexagram_input,
+            debate_history=self.debate_history,
+            final_report=self.final_report,
+            convergence_round=self.convergence_round,
+            convergence_score=self.convergence_score,
+            total_tokens_used=self.total_tokens_used
+        )
+
+
+class AgentResponseRecordORM(Base):
+    """Agent响应记录表（SQLAlchemy ORM）"""
+    __tablename__ = 'agent_responses'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    debate_id = Column(Integer, ForeignKey('debate_records.id'), nullable=False)
+    round_number = Column(Integer, nullable=False)
+
+    agent_name = Column(String(100), nullable=False)
+    school = Column(String(50), nullable=False)
+    content = Column(Text, nullable=False)
+    confidence = Column(Float, nullable=False)
+    literature_refs = Column(Text)  # JSON字符串
+    timestamp = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    # 关系
+    debate = relationship("DebateRecordORM", back_populates="responses")
+
+    def to_pydantic(self) -> 'AgentResponseRecord':
+        """转换为Pydantic模型"""
+        return AgentResponseRecord(
+            id=self.id,
+            debate_id=self.debate_id,
+            round_number=self.round_number,
+            agent_name=self.agent_name,
+            school=SchoolType(self.school),
+            content=self.content,
+            confidence=self.confidence,
+            literature_refs=self.literature_refs,
+            timestamp=self.timestamp
+        )

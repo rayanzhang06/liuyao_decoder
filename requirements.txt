@@ -3,6 +3,8 @@ anthropic>=0.18.0
 openai>=1.12.0
 google-generativeai>=0.3.0
 zhipuai>=2.0.0
+deepseek>=1.0.0
+moonshot>=0.1.0
 
 # Data Validation
 pydantic>=2.5.0
@@ -24,6 +26,7 @@ jieba>=0.42.1
 # Logging and CLI
 rich>=13.7.0
 loguru>=0.7.2
+click>=8.1.0
 
 # Utilities
 tenacity>=8.2.3
