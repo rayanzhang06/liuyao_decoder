@@ -1,0 +1,92 @@
+# LLM Configuration
+llm:
+  default_client: "kimi"
+
+  clients:
+    openai:
+      api_key: ${OPENAI_API_KEY}
+      model: "gpt-4-turbo-preview"
+      temperature: 0.7
+      max_tokens: 4000
+      timeout: 60
+
+    anthropic:
+      api_key: ${ANTHROPIC_API_KEY}
+      model: "claude-3-opus-20240229"
+      temperature: 0.7
+      max_tokens: 4000
+      timeout: 60
+
+    deepseek:
+      api_key: ${DEEPSEEK_API_KEY}
+      model: "deepseek-chat"
+      temperature: 0.7
+      max_tokens: 4000
+      timeout: 60
+
+    gemini:
+      api_key: ${GEMINI_API_KEY}
+      model: "gemini-pro"
+      temperature: 0.7
+      max_tokens: 4000
+      timeout: 60
+
+    glm:
+      api_key: ${GLM_API_KEY}
+      model: "glm-4"
+      temperature: 0.7
+      max_tokens: 4000
+      timeout: 60
+
+    kimi:
+      api_key: ${KIMI_API_KEY}
+      model: "moonshot-v1-8k"
+      temperature: 0.7
+      max_tokens: 4000
+      timeout: 60
+
+# Agent Configuration
+agents:
+  traditional:
+    llm_client: "kimi"
+    model: "moonshot-v1-8k"
+    school: "传统正宗派"
+    prompt_file: "prompts/traditional.md"
+
+  xiangshu:
+    llm_client: "glm"
+    model: "glm-4"
+    school: "象数派"
+    prompt_file: "prompts/xiangshu.md"
+
+  mangpai:
+    llm_client: "kimi"
+    model: "moonshot-v1-8k"
+    school: "盲派"
+    prompt_file: "prompts/mangpai.md"
+
+# Debate Configuration
+debate:
+  max_rounds: 10
+  convergence_threshold: 0.9
+  confidence_stability_threshold: 0.5
+  min_rounds_for_convergence: 3
+
+# Storage Configuration
+storage:
+  type: "sqlite"  # "sqlite" or "postgresql"
+  url: "sqlite:///liuyao_decoder.db"
+
+# Literature Search Configuration
+literature_search:
+  enabled: true
+  method: "keyword"  # "keyword" or "vector"
+  knowledge_base_path: "knowledge_base"
+  top_k: 3
+
+# Logging Configuration
+logging:
+  level: "INFO"
+  file: "logs/liuyao_decoder.log"
+  rotation: "100 MB"
+  retention: "30 days"

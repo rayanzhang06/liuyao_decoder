@@ -1,0 +1,35 @@
+# LLM SDKs
+anthropic>=0.18.0
+openai>=1.12.0
+google-generativeai>=0.3.0
+zhipuai>=2.0.0
+
+# Data Validation
+pydantic>=2.5.0
+
+# Configuration
+python-dotenv>=1.0.0
+pyyaml>=6.0.1
+
+# Database
+sqlalchemy>=2.0.0
+alembic>=1.13.0
+
+# Literature Search
+jieba>=0.42.1
+# Optional: Vector search (uncomment for production use)
+# chromadb>=0.4.0
+# sentence-transformers>=2.3.0
+
+# Logging and CLI
+rich>=13.7.0
+loguru>=0.7.2
+
+# Utilities
+tenacity>=8.2.3
+httpx>=0.26.0
+
+# Testing
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-mock>=3.12.0
