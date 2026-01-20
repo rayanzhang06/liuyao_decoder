@@ -11,6 +11,7 @@
 - **持久化存储**：SQLite/PostgreSQL 支持，保存辩论历史和解读报告
 - **多模型支持**：支持 Kimi、GLM、DeepSeek、OpenAI、Anthropic、Google Gemini
 - **代理支持**：为国际 LLM 提供商提供 HTTP/HTTPS 代理配置
+- **交互式界面**：友好的菜单导航，支持文件和文本输入，历史记录管理
 
 ## 快速开始
 
@@ -66,12 +67,41 @@ python main.py test-config
 
 ### 5. 解读卦象
 
+#### 方式一：交互式界面（推荐）
+
+```bash
+python main.py interactive
+```
+
+交互式界面提供友好的菜单导航：
+- 📖 **解读卦象**：支持文件输入或直接粘贴文本
+  - 输入方式：选择 `file`（文件）或 `text`（文本）
+  - 文本输入：粘贴卦象内容后，在新行输入 `===` 结束
+  - 支持直接输入文件路径自动读取
+- 📜 **查看历史记录**：表格展示，可查看详情和导出
+- 🗑️ **删除记录**：带确认提示
+- ⚙️ **测试配置**：检查 API 状态
+
+**文本输入示例**：
+```
+[0]> 灵光象吉·六爻排盘
+... 时间：2025年11月18日 23:57:20
+... 占问：事业发展
+... 本卦：火天大有
+... 变卦：风水涣
+... （更多内容...）
+... ===
+✅ 已读取 10 行文本
+```
+
+#### 方式二：命令行模式
+
 ```bash
 # 从文件解读
 python main.py decode examples/sample_hexagram.txt -o report.md
 
-# 直接输入文本
-python main.py decode-text
+# 直接在命令行传递文本（适用于短文本）
+python main.py decode-text "灵光象吉·六爻排盘\n时间：2025年11月18日 23:57:20"
 
 # 查看历史记录
 python main.py list
@@ -351,14 +381,17 @@ pytest --cov=liuyao_decoder --cov-report=html
 ## CLI 命令参考
 
 ```bash
+# 交互式界面（推荐）
+python main.py interactive
+
 # 测试配置
 python main.py test-config
 
 # 从文件解读
 python main.py decode <file_path> [-o output_file]
 
-# 直接输入文本解读
-python main.py decode-text
+# 直接在命令行传递文本解读（适用于短文本）
+python main.py decode-text "卦象文本内容"
 
 # 列出所有历史记录
 python main.py list

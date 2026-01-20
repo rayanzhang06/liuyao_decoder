@@ -10,15 +10,19 @@ from loguru import logger
 class Config:
     """配置管理类"""
 
-    def __init__(self, config_path: str = "config/config.yaml"):
+    def __init__(self, config_path: Optional[str] = None):
         """
         初始化配置
 
         Args:
-            config_path: 配置文件路径
+            config_path: 配置文件路径，默认为 "config/config.yaml"
         """
         # 加载环境变量
         load_dotenv()
+
+        # 使用默认路径如果未提供
+        if config_path is None:
+            config_path = "config/config.yaml"
 
         # 加载 YAML 配置
         self.config_path = Path(config_path)

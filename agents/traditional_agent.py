@@ -1,5 +1,5 @@
 """传统正宗派 Agent"""
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from loguru import logger
 
 from llm.base import BaseLLMClient
@@ -10,19 +10,22 @@ from agents.base_agent import BaseAgent
 class TraditionalAgent(BaseAgent):
     """传统正宗派 Agent"""
 
-    def __init__(self, llm_client: BaseLLMClient, prompt_path: str):
+    def __init__(self, llm_client: BaseLLMClient, prompt_path: str,
+                 literature_search: Optional['LiteratureSearch'] = None):
         """
         初始化传统正宗派 Agent
 
         Args:
             llm_client: LLM 客户端
             prompt_path: Prompt 文件路径
+            literature_search: 可选的文献搜索实例
         """
         super().__init__(
             name="TraditionalAgent",
             school=SchoolType.TRADITIONAL,
             llm_client=llm_client,
-            prompt_path=prompt_path
+            prompt_path=prompt_path,
+            literature_search=literature_search
         )
         logger.info(f"初始化传统正宗派 Agent，使用 LLM: {llm_client.__class__.__name__}")
 

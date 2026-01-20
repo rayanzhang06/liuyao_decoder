@@ -67,13 +67,12 @@ class DebateOrchestrator:
 
         # 创建传统正宗派Agent
         trad_config = agent_configs['traditional']
+        trad_llm_config = self.config.get_llm_config(trad_config['llm_client'])
         trad_llm = LLMClientFactory.create(
             trad_config['llm_client'],
-            self.config.get_llm_config(trad_config['llm_client'])['api_key'],
-            trad_config['model']
+            **trad_llm_config
         )
         self.agents.append(TraditionalAgent(
-            name="TraditionalAgent",
             llm_client=trad_llm,
             prompt_path=trad_config['prompt_file'],
             literature_search=self.literature_search
@@ -81,13 +80,12 @@ class DebateOrchestrator:
 
         # 创建象数派Agent
         xiang_config = agent_configs['xiangshu']
+        xiang_llm_config = self.config.get_llm_config(xiang_config['llm_client'])
         xiang_llm = LLMClientFactory.create(
             xiang_config['llm_client'],
-            self.config.get_llm_config(xiang_config['llm_client'])['api_key'],
-            xiang_config['model']
+            **xiang_llm_config
         )
         self.agents.append(XiangshuAgent(
-            name="XiangshuAgent",
             llm_client=xiang_llm,
             prompt_path=xiang_config['prompt_file'],
             literature_search=self.literature_search
@@ -95,13 +93,12 @@ class DebateOrchestrator:
 
         # 创建盲派Agent
         mang_config = agent_configs['mangpai']
+        mang_llm_config = self.config.get_llm_config(mang_config['llm_client'])
         mang_llm = LLMClientFactory.create(
             mang_config['llm_client'],
-            self.config.get_llm_config(mang_config['llm_client'])['api_key'],
-            mang_config['model']
+            **mang_llm_config
         )
         self.agents.append(MangpaiAgent(
-            name="MangpaiAgent",
             llm_client=mang_llm,
             prompt_path=mang_config['prompt_file'],
             literature_search=self.literature_search
@@ -359,6 +356,6 @@ class DebateOrchestrator:
         return {
             'round': record.round,
             'stage': record.stage,
-            'responses': [resp.dict() for resp in record.responses],
+            'responses': [resp.model_dump() for resp in record.responses],
             'timestamp': record.timestamp.isoformat()
         }

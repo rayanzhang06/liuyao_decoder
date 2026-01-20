@@ -132,7 +132,7 @@ class DatabaseManager:
                 for round_data in context.history:
                     for resp in round_data.get('responses', []):
                         # 处理响应数据
-                        resp_dict = resp if isinstance(resp, dict) else resp.dict()
+                        resp_dict = resp if isinstance(resp, dict) else resp.model_dump()
 
                         resp_record_orm = AgentResponseRecordORM(
                             debate_id=debate_record_orm.id,

@@ -64,6 +64,8 @@ class LiteratureRef(BaseModel):
     keyword: str          # 关键词
     school: SchoolType    # 流派
 
+    model_config = {"use_enum_values": True}
+
 
 class AgentResponse(BaseModel):
     """Agent 响应数据结构"""
@@ -75,6 +77,8 @@ class AgentResponse(BaseModel):
     round_number: int             # 轮次
     metadata: Dict[str, Any] = Field(default_factory=dict)  # 元数据（model, usage等）
     timestamp: datetime = Field(default_factory=datetime.now)  # 时间戳
+
+    model_config = {"use_enum_values": True}
 
 
 class DebateState(str, Enum):
