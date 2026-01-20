@@ -5,7 +5,7 @@
 ## 功能特点
 
 - **流派多样性**：融合传统正宗派、象数派、盲派三种不同的解读体系
-- **对抗性辩论**：通过 10 轮迭代辩论，相互质疑与验证
+- **对抗性辩论**：通过 3 轮迭代辩论，相互质疑与验证
 - **智能收敛**：3条收敛规则（置信度稳定性、高置信度共识、压倒性证据）
 - **文献搜索**：基于关键词索引，每个流派可搜索本流派的经典文献典籍
 - **持久化存储**：SQLite/PostgreSQL 支持，保存辩论历史和解读报告
@@ -165,7 +165,7 @@ liuyao_decoder/
 
 ### LLM 客户端配置
 
-在 `config/config.yaml` 中配置 LLM 客户端（使用各品牌最佳模型）：
+在 `config/config.yaml` 中配置 LLM 客户端：
 
 ```yaml
 llm:
@@ -175,19 +175,19 @@ llm:
     # 国内推荐
     kimi:
       api_key: ${KIMI_API_KEY}
-      model: "moonshot-v1-128k"  # 128K 上下文
+      model: "kimi-k2-thinking-turbo"  # 最新思维模型
       temperature: 0.7
       max_tokens: 4000
 
     glm:
       api_key: ${GLM_API_KEY}
-      model: "glm-4-plus"
+      model: "glm-4.7"  # 最新模型
       temperature: 0.7
       max_tokens: 4000
 
     deepseek:
       api_key: ${DEEPSEEK_API_KEY}
-      model: "deepseek-chat"
+      model: "deepseek-reasoner"  # 推理模型
       temperature: 0.7
       max_tokens: 4000
 
@@ -219,19 +219,19 @@ llm:
 agents:
   traditional:
     llm_client: "kimi"
-    model: "moonshot-v1-128k"
+    model: "kimi-k2-thinking-turbo"
     school: "传统正宗派"
     prompt_file: "prompts/traditional.md"
 
   xiangshu:
-    llm_client: "glm"
-    model: "glm-4-plus"
+    llm_client: "kimi"
+    model: "kimi-k2-thinking-turbo"
     school: "象数派"
     prompt_file: "prompts/xiangshu.md"
 
   mangpai:
     llm_client: "kimi"
-    model: "moonshot-v1-128k"
+    model: "kimi-k2-thinking-turbo"
     school: "盲派"
     prompt_file: "prompts/mangpai.md"
 ```
@@ -240,7 +240,7 @@ agents:
 
 ```yaml
 debate:
-  max_rounds: 10              # 最大辩论轮数
+  max_rounds: 3               # 最大辩论轮数
   convergence_threshold: 0.9  # 收敛阈值
   confidence_stability_threshold: 0.5  # 置信度稳定性阈值
 ```
@@ -272,7 +272,7 @@ DATABASE_URL=postgresql://user:password@localhost/liuyao_decoder
 - [x] 配置加载模块
 - [x] Agent 基类和三个流派实现
 - [x] 辩论编排器（DebateOrchestrator）
-  - 10轮辩论管理
+  - 3轮辩论管理
   - 并行初始解读
   - 顺序辩论流程
   - 3条收敛规则
@@ -305,9 +305,9 @@ DATABASE_URL=postgresql://user:password@localhost/liuyao_decoder
 
 | 提供商 | 模型 | 说明 | 推荐场景 |
 |--------|------|------|----------|
-| **Kimi** | moonshot-v1-128k | 128K 上下文 | 国内首选 |
-| **GLM** | glm-4-plus | 智谱最强模型 | 国内备选 |
-| **DeepSeek** | deepseek-chat | 深度求索 | 国内备选 |
+| **Kimi** | kimi-k2-thinking-turbo | 最新思维模型 | 国内首选 |
+| **GLM** | glm-4.7 | 最新模型 | 国内备选 |
+| **DeepSeek** | deepseek-reasoner | 推理模型 | 国内备选 |
 | **OpenAI** | gpt-4o | 需要代理 | 国际用户 |
 | **Anthropic** | claude-sonnet-4-5-20250929 | 需要代理 | 国际用户 |
 | **Gemini** | gemini-2.0-flash-exp | 需要代理 | 国际用户 |
@@ -320,7 +320,7 @@ DATABASE_URL=postgresql://user:password@localhost/liuyao_decoder
    - 3 个 Agent 并行独立解读卦象
    - 每个输出初始结论和置信度（0-10）
 
-2. **Round 1-10 - 对抗辩论**
+2. **Round 1-3 - 对抗辩论**
    - 顺序执行，每个 Agent 依次发言
    - 可以保持或调整自己的观点
    - 回应其他 Agent 的质疑
@@ -444,7 +444,7 @@ HTTPS_PROXY=http://127.0.0.1:7891
 
 1. **文献搜索**：当前使用占位符文件，需添加实际内容
 2. **代理配置**：国际提供商需要手动配置代理
-3. **LLM 成本**：10轮辩论消耗较多 tokens，建议监控使用量
+3. **LLM 成本**：3轮辩论消耗较多 tokens，建议监控使用量
 
 ## 许可证
 

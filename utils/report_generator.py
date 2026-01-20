@@ -86,7 +86,9 @@ class ReportGenerator:
         conclusion_table = "| 流派 | 吉凶判断 | 置信度 |\n|------|---------|--------|\n"
         for resp in responses:
             conclusion = self._extract_fortune_judgment(resp.content)
-            conclusion_table += f"| {resp.school.value} | {conclusion} | {resp.confidence}/10 |\n"
+            # 处理 school 字段（可能是枚举或字符串）
+            school_str = self._get_school_chinese_name(resp.school)
+            conclusion_table += f"| {school_str} | {conclusion} | {resp.confidence}/10 |\n"
 
         # 计算共识度
         consensus_level = self._calculate_consensus_level(responses)
@@ -304,7 +306,8 @@ class ReportGenerator:
             # 提取关键论点
             key_points = self._extract_key_points(resp.content)
             if key_points:
-                reasons.append(f"- {resp.school.value}: {key_points}")
+                school_name = self._get_school_chinese_name(resp.school)
+                reasons.append(f"- {school_name}: {key_points}")
 
         return '\n'.join(reasons) if reasons else "- 各流派观点较为一致"
 
@@ -313,7 +316,8 @@ class ReportGenerator:
         table_rows = []
         for resp in responses:
             timing = self._extract_timing(resp.content)
-            table_rows.append(f"| {resp.school.value} | {timing} | {resp.confidence}/10 |")
+            school_name = self._get_school_chinese_name(resp.school)
+            table_rows.append(f"| {school_name} | {timing} | {resp.confidence}/10 |")
         return '\n'.join(table_rows)
 
     def _extract_common_suggestions(self, responses: List[AgentResponse]) -> str:
@@ -488,14 +492,24 @@ class ReportGenerator:
         else:
             return "低"
 
-    def _get_school_chinese_name(self, school: SchoolType) -> str:
+    def _get_school_chinese_name(self, school) -> str:
         """获取流派中文名称"""
+        # 如果是字符串，直接映射
+        if isinstance(school, str):
+            name_map = {
+                "traditional": "传统正宗派",
+                "xiangshu": "象数派",
+                "mangpai": "盲派"
+            }
+            return name_map.get(school, school)
+
+        # 如果是枚举，使用枚举映射
         name_map = {
             SchoolType.TRADITIONAL: "传统正宗派",
             SchoolType.XIANGSHU: "象数派",
             SchoolType.MANGPAI: "盲派"
         }
-        return name_map.get(school, school.value)
+        return name_map.get(school, school.value if hasattr(school, 'value') else str(school))
 
     def _extract_responses_from_round(self, round_data: Dict[str, Any]) -> List[AgentResponse]:
         """从轮次数据中提取响应列表"""

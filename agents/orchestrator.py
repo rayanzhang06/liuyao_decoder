@@ -1,5 +1,6 @@
 """辩论编排器 - 协调三个Agent进行多轮辩论"""
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from typing import List, Dict, Any, Optional, Tuple
 from loguru import logger
 from datetime import datetime
@@ -182,9 +183,14 @@ class DebateOrchestrator:
         """
         logger.info("并行调用三个Agent进行初始解读")
 
-        # 并行调用三个Agent的interpret方法
-        tasks = [agent.interpret(hexagram) for agent in self.agents]
-        responses = await asyncio.gather(*tasks, return_exceptions=True)
+        # 使用 ThreadPoolExecutor 并行调用三个Agent的interpret方法（同步方法）
+        loop = asyncio.get_event_loop()
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            tasks = [
+                loop.run_in_executor(executor, agent.interpret, hexagram)
+                for agent in self.agents
+            ]
+            responses = await asyncio.gather(*tasks, return_exceptions=True)
 
         # 处理异常和响应
         processed_responses = []
@@ -228,12 +234,14 @@ class DebateOrchestrator:
         """
         logger.info(f"运行第 {round_number} 轮辩论")
 
-        # 顺序调用三个Agent的debate方法
+        # 顺序调用三个Agent的debate方法（同步方法）
         responses = []
+        loop = asyncio.get_event_loop()
         for agent in self.agents:
             try:
                 logger.debug(f"调用 {agent.name} 的辩论方法")
-                resp = await agent.debate(hexagram, history, round_number)
+                # 在线程池中执行同步方法，避免阻塞事件循环
+                resp = await loop.run_in_executor(None, agent.debate, hexagram, history, round_number)
                 responses.append(resp)
                 logger.info(f"Agent {resp.agent_name} 第 {round_number} 轮完成，置信度: {resp.confidence}")
             except Exception as e:

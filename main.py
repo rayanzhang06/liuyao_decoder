@@ -473,6 +473,7 @@ def _interactive_decode(console: Console, app):
 
             lines = []
             line_count = 0
+            hexagram_loaded = False  # 标记是否已加载卦象文本
             while True:
                 try:
                     prompt_text = f"[{line_count}]> " if line_count == 0 else "... "
@@ -494,6 +495,7 @@ def _interactive_decode(console: Console, app):
                     # 检查是否是文件路径（仅当还没有输入内容时）
                     if not lines and Path(line_stripped).exists():
                         hexagram_text = Path(line_stripped).read_text(encoding='utf-8')
+                        hexagram_loaded = True
                         console.print(f"[green]✅ 已从文件读取: {line_stripped}[/green]")
                         break
 
@@ -508,11 +510,11 @@ def _interactive_decode(console: Console, app):
                         console.print("[yellow]已取消输入[/yellow]")
                         return
 
-            if not lines and 'hexagram_text' not in locals():
+            if not lines and not hexagram_loaded:
                 console.print("[yellow]未输入任何内容[/yellow]")
                 return
 
-            if 'hexagram_text' not in locals():
+            if not hexagram_loaded:
                 hexagram_text = "\n".join(lines)
                 console.print(f"[green]✅ 已读取 {len(lines)} 行文本[/green]")
 

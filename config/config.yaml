@@ -6,21 +6,21 @@ llm:
     # 国内提供商（推荐）
     kimi:
       api_key: ${KIMI_API_KEY}
-      model: "moonshot-v1-128k"  # 最佳模型：128K context
+      model: "kimi-k2-thinking-turbo"  # 最新思维模型
       temperature: 0.7
       max_tokens: 8000
       timeout: 90
 
     glm:
       api_key: ${GLM_API_KEY}
-      model: "glm-4-plus"  # 最佳模型：GLM-4 Plus
+      model: "glm-4.7"  # 最新模型
       temperature: 0.7
       max_tokens: 8000
       timeout: 90
 
     deepseek:
       api_key: ${DEEPSEEK_API_KEY}
-      model: "deepseek-chat"  # 当前最佳模型
+      model: "deepseek-reasoner"  # 推理模型
       temperature: 0.7
       max_tokens: 8000
       timeout: 90
@@ -51,25 +51,25 @@ llm:
 agents:
   traditional:
     llm_client: "kimi"
-    model: "moonshot-v1-128k"
+    model: "kimi-k2-thinking-turbo"
     school: "传统正宗派"
     prompt_file: "prompts/traditional.md"
 
   xiangshu:
-    llm_client: "glm"
-    model: "glm-4-plus"
+    llm_client: "kimi"
+    model: "kimi-k2-thinking-turbo"
     school: "象数派"
     prompt_file: "prompts/xiangshu.md"
 
   mangpai:
     llm_client: "kimi"
-    model: "moonshot-v1-128k"
+    model: "kimi-k2-thinking-turbo"
     school: "盲派"
     prompt_file: "prompts/mangpai.md"
 
 # Debate Configuration
 debate:
-  max_rounds: 10
+  max_rounds: 3
   convergence_threshold: 0.9
   confidence_stability_threshold: 0.5
   min_rounds_for_convergence: 3
