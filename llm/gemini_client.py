@@ -17,13 +17,23 @@ class GeminiClient(BaseLLMClient):
         Args:
             api_key: Google API 密钥
             model: 模型名称（默认 gemini-pro）
-            **kwargs: 其他配置参数
+            **kwargs: 其他配置参数（timeout, http_proxy, https_proxy）
         """
         super().__init__(api_key, model, **kwargs)
 
         try:
             import google.generativeai as genai
             self.genai = genai
+
+            # 配置代理（通过环境变量设置）
+            if self.http_proxy or self.https_proxy:
+                import os
+                if self.http_proxy:
+                    os.environ['HTTP_PROXY'] = self.http_proxy
+                if self.https_proxy:
+                    os.environ['HTTPS_PROXY'] = self.https_proxy
+                logger.info(f"Gemini 客户端使用代理: http={self.http_proxy}, https={self.https_proxy}")
+
             genai.configure(api_key=api_key)
             self.client = genai.GenerativeModel(model)
         except ImportError:
@@ -61,55 +71,68 @@ class GeminiClient(BaseLLMClient):
         logger.info(f"调用 Gemini API: model={model}, messages={len(messages)}")
 
         try:
+            import signal
+
+            def timeout_handler(signum, frame):
+                raise TimeoutError(f"Gemini API 调用超时（超过 {self.timeout} 秒）")
+
             start_time = time.time()
 
-            # Gemini 需要特殊的消息格式处理
-            # 提取 system 消息并作为指令
-            system_instruction = None
-            chat_history = []
-            user_message = None
+            # 设置超时信号
+            signal.signal(signal.SIGALRM, timeout_handler)
+            signal.alarm(self.timeout)
 
-            for msg in messages:
-                if msg.role == "system":
-                    # 合并所有 system 消息
-                    if system_instruction is None:
-                        system_instruction = msg.content
-                    else:
-                        system_instruction += "\n\n" + msg.content
-                elif msg.role == "user":
-                    # 最后一个 user 消息作为当前输入
-                    user_message = msg.content
-                elif msg.role == "assistant":
-                    # assistant 消息作为历史
-                    chat_history.append({
-                        "role": "model",
-                        "parts": [msg.content]
-                    })
+            try:
+                # Gemini 需要特殊的消息格式处理
+                # 提取 system 消息并作为指令
+                system_instruction = None
+                chat_history = []
+                user_message = None
 
-            # 如果有 system instruction，重新创建模型
-            if system_instruction:
-                self.client = self.genai.GenerativeModel(
-                    model,
-                    system_instruction=system_instruction
+                for msg in messages:
+                    if msg.role == "system":
+                        # 合并所有 system 消息
+                        if system_instruction is None:
+                            system_instruction = msg.content
+                        else:
+                            system_instruction += "\n\n" + msg.content
+                    elif msg.role == "user":
+                        # 最后一个 user 消息作为当前输入
+                        user_message = msg.content
+                    elif msg.role == "assistant":
+                        # assistant 消息作为历史
+                        chat_history.append({
+                            "role": "model",
+                            "parts": [msg.content]
+                        })
+
+                # 如果有 system instruction，重新创建模型
+                if system_instruction:
+                    self.client = self.genai.GenerativeModel(
+                        model,
+                        system_instruction=system_instruction
+                    )
+
+                # 创建聊天会话
+                if chat_history:
+                    chat = self.client.start_chat(history=chat_history)
+                else:
+                    chat = self.client.start_chat()
+
+                # 生成配置
+                generation_config = self.genai.types.GenerationConfig(
+                    temperature=temperature,
+                    max_output_tokens=max_tokens,
                 )
 
-            # 创建聊天会话
-            if chat_history:
-                chat = self.client.start_chat(history=chat_history)
-            else:
-                chat = self.client.start_chat()
-
-            # 生成配置
-            generation_config = self.genai.types.GenerationConfig(
-                temperature=temperature,
-                max_output_tokens=max_tokens,
-            )
-
-            # 发送消息
-            response = chat.send_message(
-                user_message,
-                generation_config=generation_config
-            )
+                # 发送消息
+                response = chat.send_message(
+                    user_message,
+                    generation_config=generation_config
+                )
+            finally:
+                # 取消超时信号
+                signal.alarm(0)
 
             elapsed_time = time.time() - start_time
 

@@ -252,6 +252,13 @@ if __name__ == "__main__":
     print("六爻解读多 Agent 系统 - LLM 客户端测试")
     print("="*50)
 
+    # 检查是否跳过国际提供商测试
+    skip_international = os.getenv("SKIP_INTERNATIONAL_PROVIDERS", "false").lower() == "true"
+
+    if skip_international:
+        print("\n提示: 跳过国际提供商测试（OpenAI、Anthropic、Gemini）")
+        print("如需测试，请设置: SKIP_INTERNATIONAL_PROVIDERS=false")
+
     # 测试配置加载
     test_config_loading()
 
@@ -259,9 +266,12 @@ if __name__ == "__main__":
     test_kimi_client()
     test_glm_client()
     test_deepseek_client()
-    test_gemini_client()
-    test_openai_client()
-    test_anthropic_client()
+
+    # 国际提供商（需要代理）
+    if not skip_international:
+        test_gemini_client()
+        test_openai_client()
+        test_anthropic_client()
 
     print("\n" + "="*50)
     print("测试完成")
@@ -271,3 +281,6 @@ if __name__ == "__main__":
     print("2. 如果看到 '✅ API 调用成功'，说明该客户端工作正常")
     print("3. 如果看到 '❌ 测试失败'，请检查 API_KEY 是否正确")
     print("4. 国内推荐使用 Kimi、GLM 或 DeepSeek（无需代理）")
+    print("5. 国际提供商（OpenAI、Anthropic、Gemini）需要配置代理")
+    print("   - 在 .env 中设置 HTTP_PROXY 和 HTTPS_PROXY")
+    print("   - 或设置 SKIP_INTERNATIONAL_PROVIDERS=true 跳过测试")

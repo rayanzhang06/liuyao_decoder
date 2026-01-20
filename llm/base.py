@@ -27,13 +27,15 @@ class BaseLLMClient(ABC):
         Args:
             api_key: API 密钥
             model: 模型名称
-            **kwargs: 其他配置参数（temperature, max_tokens, timeout 等）
+            **kwargs: 其他配置参数（temperature, max_tokens, timeout, http_proxy 等）
         """
         self.api_key = api_key
         self.model = model
         self.temperature = kwargs.get('temperature', 0.7)
         self.max_tokens = kwargs.get('max_tokens', 4000)
         self.timeout = kwargs.get('timeout', 60)
+        self.http_proxy = kwargs.get('http_proxy')
+        self.https_proxy = kwargs.get('https_proxy')
 
     @abstractmethod
     def chat(self,

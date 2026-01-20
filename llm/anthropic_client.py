@@ -17,14 +17,32 @@ class AnthropicClient(BaseLLMClient):
         Args:
             api_key: Anthropic API 密钥
             model: 模型名称（默认 claude-3-opus-20240229）
-            **kwargs: 其他配置参数
+            **kwargs: 其他配置参数（timeout, http_proxy, https_proxy）
         """
         super().__init__(api_key, model, **kwargs)
 
         try:
             import anthropic
+            from anthropic import Anthropic, DefaultHttpxClient
+
             self.anthropic = anthropic
-            self.client = anthropic.Anthropic(api_key=api_key)
+
+            # 配置代理
+            proxies = {}
+            if self.http_proxy:
+                proxies["http://"] = self.http_proxy
+            if self.https_proxy:
+                proxies["https://"] = self.https_proxy
+
+            # 创建 httpx 客户端
+            if proxies:
+                import httpx
+                http_client = httpx.Client(proxies=proxies, timeout=self.timeout)
+                logger.info(f"Anthropic 客户端使用代理: {proxies}")
+                self.client = Anthropic(api_key=api_key, http_client=http_client)
+            else:
+                self.client = Anthropic(api_key=api_key, max_retries=3, timeout=self.timeout)
+
         except ImportError:
             raise ImportError("请安装 anthropic 库: pip install anthropic")
 

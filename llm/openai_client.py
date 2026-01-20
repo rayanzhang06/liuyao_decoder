@@ -17,14 +17,32 @@ class OpenAIClient(BaseLLMClient):
         Args:
             api_key: OpenAI API 密钥
             model: 模型名称（默认 gpt-4-turbo-preview）
-            **kwargs: 其他配置参数
+            **kwargs: 其他配置参数（timeout, http_proxy, https_proxy）
         """
         super().__init__(api_key, model, **kwargs)
 
         try:
             import openai
+            import httpx
+
             self.openai = openai
-            self.client = openai.OpenAI(api_key=api_key)
+
+            # 配置代理
+            proxies = {}
+            if self.http_proxy:
+                proxies["http://"] = self.http_proxy
+            if self.https_proxy:
+                proxies["https://"] = self.https_proxy
+
+            # 创建 httpx 客户端
+            http_client = None
+            if proxies:
+                http_client = httpx.Client(proxies=proxies, timeout=self.timeout)
+                logger.info(f"OpenAI 客户端使用代理: {proxies}")
+            else:
+                http_client = httpx.Client(timeout=self.timeout)
+
+            self.client = openai.OpenAI(api_key=api_key, http_client=http_client)
         except ImportError:
             raise ImportError("请安装 openai 库: pip install openai")
 
