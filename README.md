@@ -6,17 +6,18 @@
 
 - **流派多样性**：融合传统正宗派、象数派、盲派三种不同的解读体系
 - **对抗性辩论**：通过 10 轮迭代辩论，相互质疑与验证
-- **收敛机制**：在辩论中寻找共识点，标记分歧点
-- **文献搜索**：每个流派可搜索本流派的经典文献典籍
-- **持久化存储**：保存辩论历史和解读报告
-- **多模型支持**：支持 DeepSeek、Gemini、OpenAI GPT-4、Anthropic Claude 等
+- **智能收敛**：3条收敛规则（置信度稳定性、高置信度共识、压倒性证据）
+- **文献搜索**：基于关键词索引，每个流派可搜索本流派的经典文献典籍
+- **持久化存储**：SQLite/PostgreSQL 支持，保存辩论历史和解读报告
+- **多模型支持**：支持 Kimi、GLM、DeepSeek、OpenAI、Anthropic、Google Gemini
+- **代理支持**：为国际 LLM 提供商提供 HTTP/HTTPS 代理配置
 
-## 安装
+## 快速开始
 
 ### 1. 创建虚拟环境
 
 ```bash
-cd /Users/ruizhang/Desktop/Projects/liuyao_decoder
+cd /path/to/liuyao_decoder
 python3 -m venv venv
 source venv/bin/activate  # macOS/Linux
 # 或者在 Windows 上: venv\Scripts\activate
@@ -40,44 +41,46 @@ cp .env.example .env
 编辑 `.env` 文件：
 
 ```env
-DEEPSEEK_API_KEY=your_deepseek_api_key
-GEMINI_API_KEY=your_gemini_api_key
-OPENAI_API_KEY=your_openai_api_key  # 可选
-ANTHROPIC_API_KEY=your_anthropic_api_key  # 可选
+# 国内提供商（推荐，无需代理）
+KIMI_API_KEY=your-kimi-api-key-here
+GLM_API_KEY=your-glm-api-key-here
+DEEPSEEK_API_KEY=your-deepseek-api-key-here
+
+# 国际提供商（需要代理）
+OPENAI_API_KEY=your-openai-api-key-here
+ANTHROPIC_API_KEY=your-anthropic-api-key-here
+GEMINI_API_KEY=your-gemini-api-key-here
+
+# 代理配置（可选，用于国际提供商）
+HTTP_PROXY=http://127.0.0.1:7891
+HTTPS_PROXY=http://127.0.0.1:7891
 ```
 
-### 4. 准备文献库（可选）
+**国内用户推荐**：Kimi > GLM > DeepSeek（均无需代理，速度快）
 
-如果需要使用文献搜索功能，将经典文献按流派分类放入 `knowledge_base/` 目录：
-
-```
-knowledge_base/
-├── traditional/  # 传统正宗派文献
-├── xiangshu/     # 象数派文献
-└── mangpai/      # 盲派文献
-```
-
-## 快速开始
-
-### 激活虚拟环境
+### 4. 测试配置
 
 ```bash
-source venv/bin/activate  # macOS/Linux
-# 或者在 Windows 上: venv\Scripts\activate
+python main.py test-config
 ```
 
-### 测试 LLM 客户端
+### 5. 解读卦象
 
 ```bash
-python tests/test_llm_clients.py
-```
+# 从文件解读
+python main.py decode examples/sample_hexagram.txt -o report.md
 
-**注意**：需要在 `.env` 文件中配置至少一个 LLM API 密钥（DeepSeek、Gemini、OpenAI 或 Anthropic）。
+# 直接输入文本
+python main.py decode-text
 
-### 运行解读（待实现）
+# 查看历史记录
+python main.py list
 
-```bash
-python main.py
+# 查看特定记录
+python main.py view <debate_id>
+
+# 删除记录
+python main.py delete <debate_id>
 ```
 
 ## 项目结构
@@ -85,62 +88,95 @@ python main.py
 ```
 liuyao_decoder/
 ├── agents/                     # Agent 模块
-│   ├── base_agent.py          # Agent 基类
-│   ├── coordinator.py         # 总控 Agent
+│   ├── base_agent.py          # Agent 基类（含文献搜索）
+│   ├── orchestrator.py        # 辩论编排器
 │   ├── traditional_agent.py   # 传统正宗派
 │   ├── xiangshu_agent.py      # 象数派
 │   └── mangpai_agent.py       # 盲派
 ├── llm/                       # LLM 抽象层
 │   ├── base.py               # 抽象基类
-│   ├── openai_client.py      # OpenAI 客户端
-│   ├── anthropic_client.py   # Anthropic 客户端
+│   ├── kimi_client.py        # Kimi 客户端
+│   ├── glm_client.py         # GLM 客户端
 │   ├── deepseek_client.py    # DeepSeek 客户端
-│   ├── gemini_client.py      # Gemini 客户端
+│   ├── openai_client.py      # OpenAI 客户端（支持代理）
+│   ├── anthropic_client.py   # Anthropic 客户端（支持代理）
+│   ├── gemini_client.py      # Gemini 客户端（支持代理）
 │   └── factory.py            # 客户端工厂
 ├── utils/                     # 工具模块
 │   ├── parser.py             # 卦象解析器
-│   ├── debate_manager.py     # 辩论管理器
 │   ├── report_generator.py   # 报告生成器
 │   ├── literature_search.py  # 文献搜索
 │   └── convergence_detector.py # 收敛检测
 ├── storage/                   # 存储模块
-│   ├── storage_service.py    # 存储服务
-│   └── models.py             # 数据模型
+│   ├── models.py             # 数据模型（Pydantic + SQLAlchemy ORM）
+│   ├── database.py           # 数据库管理器
+│   └── migrations/           # Alembic 数据库迁移
 ├── prompts/                   # Prompt 模板
+│   ├── traditional.md        # 传统正宗派提示
+│   ├── xiangshu.md           # 象数派提示
+│   └── mangpai.md            # 盲派提示
 ├── knowledge_base/            # 文献库
-├── config/                    # 配置文件
-│   └── config.yaml
+│   ├── traditional/          # 传统正宗派文献
+│   ├── xiangshu/             # 象数派文献
+│   └── mangpai/              # 盲派文献
+├── config/
+│   └── config.yaml           # 配置文件
 ├── tests/                     # 测试
-├── main.py                    # 主入口
-└── requirements.txt
+│   ├── test_llm_clients.py   # LLM 客户端测试
+│   └── integration/          # 集成测试
+├── examples/                  # 示例
+│   └── sample_hexagram.txt   # 示例卦象
+├── main.py                    # CLI 主入口
+├── requirements.txt           # Python 依赖
+└── README.md                  # 本文件
 ```
 
 ## 配置说明
 
 ### LLM 客户端配置
 
-在 `config/config.yaml` 中配置 LLM 客户端（默认使用 Kimi）：
+在 `config/config.yaml` 中配置 LLM 客户端（使用各品牌最佳模型）：
 
 ```yaml
 llm:
   default_client: "kimi"
 
   clients:
+    # 国内推荐
     kimi:
       api_key: ${KIMI_API_KEY}
-      model: "moonshot-v1-8k"
+      model: "moonshot-v1-128k"  # 128K 上下文
       temperature: 0.7
       max_tokens: 4000
 
     glm:
       api_key: ${GLM_API_KEY}
-      model: "glm-4"
+      model: "glm-4-plus"
       temperature: 0.7
       max_tokens: 4000
 
     deepseek:
       api_key: ${DEEPSEEK_API_KEY}
       model: "deepseek-chat"
+      temperature: 0.7
+      max_tokens: 4000
+
+    # 国际提供商（需要代理）
+    openai:
+      api_key: ${OPENAI_API_KEY}
+      model: "gpt-4o"
+      temperature: 0.7
+      max_tokens: 4000
+
+    anthropic:
+      api_key: ${ANTHROPIC_API_KEY}
+      model: "claude-sonnet-4-5-20250929"
+      temperature: 0.7
+      max_tokens: 4000
+
+    gemini:
+      api_key: ${GEMINI_API_KEY}
+      model: "gemini-2.0-flash-exp"
       temperature: 0.7
       max_tokens: 4000
 ```
@@ -153,72 +189,136 @@ llm:
 agents:
   traditional:
     llm_client: "kimi"
-    model: "moonshot-v1-8k"
+    model: "moonshot-v1-128k"
     school: "传统正宗派"
     prompt_file: "prompts/traditional.md"
 
   xiangshu:
     llm_client: "glm"
-    model: "glm-4"
+    model: "glm-4-plus"
     school: "象数派"
     prompt_file: "prompts/xiangshu.md"
 
   mangpai:
     llm_client: "kimi"
-    model: "moonshot-v1-8k"
+    model: "moonshot-v1-128k"
     school: "盲派"
     prompt_file: "prompts/mangpai.md"
 ```
 
-## 开发进度
+### 辩论配置
 
-### 阶段 1：基础架构 ✅
-- [x] 项目目录结构
-- [x] LLM 抽象层（支持 DeepSeek、Gemini、OpenAI、Anthropic）
-- [x] 数据模型
+```yaml
+debate:
+  max_rounds: 10              # 最大辩论轮数
+  convergence_threshold: 0.9  # 收敛阈值
+  confidence_stability_threshold: 0.5  # 置信度稳定性阈值
+```
+
+### 代理配置
+
+对于国际 LLM 提供商（OpenAI、Anthropic、Gemini），可以在 `.env` 中配置代理：
+
+```env
+HTTP_PROXY=http://127.0.0.1:7891
+HTTPS_PROXY=http://127.0.0.1:7891
+```
+
+系统会自动从环境变量读取代理配置并应用到国际提供商。
+
+### 数据库配置
+
+默认使用 SQLite，自动创建 `liuyao_decoder.db`。要使用 PostgreSQL：
+
+```env
+DATABASE_URL=postgresql://user:password@localhost/liuyao_decoder
+```
+
+## 实施状态
+
+### ✅ 阶段 1：核心辩论系统（已完成）
+- [x] LLM 抽象层（6个提供商：Kimi, GLM, DeepSeek, OpenAI, Anthropic, Gemini）
+- [x] 数据模型（Pydantic）
 - [x] 配置加载模块
+- [x] Agent 基类和三个流派实现
+- [x] 辩论编排器（DebateOrchestrator）
+  - 10轮辩论管理
+  - 并行初始解读
+  - 顺序辩论流程
+  - 3条收敛规则
+- [x] 报告生成器（ReportGenerator）
+  - 7章节结构化报告
+  - 共识度和置信度分析
+- [x] CLI 入口（main.py）
+  - decode, decode-text, list, view, delete, test-config 命令
 
-### 阶段 2：Agent 系统（进行中）
-- [ ] Agent 基类
-- [ ] 三个流派 Agent 实现
-- [ ] 卦象输入解析器
-- [ ] Prompt 模板
+### ✅ 阶段 2：数据库持久化（已完成）
+- [x] SQLAlchemy ORM 模型
+- [x] 数据库管理器（DatabaseManager）
+  - CRUD 操作
+  - 搜索和查询
+  - 事务管理
+- [x] Alembic 迁移配置
+- [x] SQLite 默认支持
+- [x] PostgreSQL 可选支持
 
-### 阶段 3：核心辩论流程
-- [ ] 辩论管理器
-- [ ] 状态机逻辑
-- [ ] 收敛检测器
-
-### 阶段 4：持久化存储
-- [ ] 数据库表设计
-- [ ] 存储服务实现
-
-### 阶段 5：文献搜索功能
-- [ ] 文献索引
-- [ ] 搜索服务实现
-
-### 阶段 6：报告生成
-- [ ] 报告模板
-- [ ] 报告生成器
-
-### 阶段 7：优化与测试
-- [ ] 性能优化
-- [ ] 测试完善
+### ✅ 阶段 3：文献搜索功能（已完成）
+- [x] 知识库目录结构（按流派组织）
+- [x] 文献搜索服务（LiteratureSearch）
+  - 关键词索引（jieba 分词）
+  - 搜索和打分算法
+  - 片段提取和格式化
+- [x] Agent 集成（自动搜索和引用）
+- [x] 占位符文献文件（易于扩展）
 
 ## 支持的 LLM 模型
 
 | 提供商 | 模型 | 说明 | 推荐场景 |
 |--------|------|------|----------|
-| **Kimi** | moonshot-v1-8k | 默认使用，国内访问快 | 推荐，性价比高 |
-| **GLM** | glm-4 | 智谱清言，国内访问快 | 备选 |
-| DeepSeek | deepseek-chat | 深度求索，国内访问快 | 备选 |
-| Google | gemini-pro | 需要代理 | 国际用户 |
-| OpenAI | gpt-4-turbo-preview | 需要代理 | 国际用户 |
-| Anthropic | claude-3-opus-20240229 | 需要代理 | 国际用户 |
+| **Kimi** | moonshot-v1-128k | 128K 上下文 | 国内首选 |
+| **GLM** | glm-4-plus | 智谱最强模型 | 国内备选 |
+| **DeepSeek** | deepseek-chat | 深度求索 | 国内备选 |
+| **OpenAI** | gpt-4o | 需要代理 | 国际用户 |
+| **Anthropic** | claude-sonnet-4-5-20250929 | 需要代理 | 国际用户 |
+| **Gemini** | gemini-2.0-flash-exp | 需要代理 | 国际用户 |
 
-**国内用户推荐使用顺序**：Kimi > GLM > DeepSeek（均无需代理，速度快）
+**国内用户推荐顺序**：Kimi > GLM > DeepSeek
+
+## 辩论流程
+
+1. **Round 0 - 初始解读**
+   - 3 个 Agent 并行独立解读卦象
+   - 每个输出初始结论和置信度（0-10）
+
+2. **Round 1-10 - 对抗辩论**
+   - 顺序执行，每个 Agent 依次发言
+   - 可以保持或调整自己的观点
+   - 回应其他 Agent 的质疑
+   - 引用文献支持观点
+
+3. **收敛检测**（每轮后检查）
+   - 规则1：置信度稳定性（连续3轮变化 < 0.5）
+   - 规则2：高置信度共识（所有 Agent ≥ 8.0）
+   - 规则3：压倒性证据（2个 Agent ≥ 9.0 且观点一致）
+
+4. **报告生成**
+   - 卦象基本信息
+   - 核心结论（共识度分析）
+   - 详细分析（用神、动爻、六神世应）
+   - 流派视角对比
+   - 辩论摘要
+   - 综合建议
+   - 备注
 
 ## 测试
+
+### 测试 LLM 客户端
+
+```bash
+python tests/test_llm_clients.py
+```
+
+### 运行 pytest
 
 ```bash
 # 运行所有测试
@@ -234,6 +334,85 @@ pytest tests/integration/
 pytest --cov=liuyao_decoder --cov-report=html
 ```
 
+## 扩展文献库
+
+当前使用占位符文献。要添加实际文献：
+
+1. 将文献文本转换为 `.txt` 格式
+2. 按照各流派 README 中的格式规范整理
+3. 放入对应的 `knowledge_base/<school>/` 目录
+4. 重启应用（自动重建索引）
+
+**支持的经典文献**：
+- 传统正宗派：《增删卜易》、《卜筮正宗》
+- 象数派：《易经系辞》、《梅花易术》
+- 盲派：《盲派口诀》
+
+## CLI 命令参考
+
+```bash
+# 测试配置
+python main.py test-config
+
+# 从文件解读
+python main.py decode <file_path> [-o output_file]
+
+# 直接输入文本解读
+python main.py decode-text
+
+# 列出所有历史记录
+python main.py list
+
+# 查看特定记录
+python main.py view <debate_id>
+
+# 删除记录
+python main.py delete <debate_id>
+
+# 查看帮助
+python main.py --help
+python main.py <command> --help
+```
+
+## 技术栈
+
+- **Python 3.10+**
+- **LLM**: anthropic, openai, google-generativeai, zhipuai, moonshot
+- **CLI**: click, rich
+- **数据**: Pydantic, SQLAlchemy, Alembic
+- **中文处理**: jieba
+- **日志**: loguru
+- **测试**: pytest
+
+## 开发建议
+
+### 1. 使用国内 LLM 提供商
+
+Kimi、GLM、DeepSeek 均无需代理，速度快且性价比高。
+
+### 2. 配置代理访问国际提供商
+
+如需使用 OpenAI、Anthropic 或 Gemini，在 `.env` 中配置代理：
+
+```env
+HTTP_PROXY=http://127.0.0.1:7891
+HTTPS_PROXY=http://127.0.0.1:7891
+```
+
+### 3. 扩展文献库
+
+将实际经典文献添加到 `knowledge_base/` 各流派目录，系统会自动索引。
+
+### 4. 调整辩论参数
+
+在 `config/config.yaml` 中调整 `debate.max_rounds` 和收敛阈值。
+
+## 已知限制
+
+1. **文献搜索**：当前使用占位符文件，需添加实际内容
+2. **代理配置**：国际提供商需要手动配置代理
+3. **LLM 成本**：10轮辩论消耗较多 tokens，建议监控使用量
+
 ## 许可证
 
 MIT License
@@ -242,6 +421,14 @@ MIT License
 
 欢迎提交 Issue 和 Pull Request！
 
+### 贡献方向
+
+1. 添加更多经典文献到知识库
+2. 优化收敛检测算法
+3. 支持更多六爻流派
+4. 添加 Web 界面
+5. 性能优化和缓存
+
 ## 联系方式
 
-如有问题或建议，请提交 Issue。
+如有问题或建议，请提交 [Issue](https://github.com/rayanzhang06/liuyao_decoder/issues)。
