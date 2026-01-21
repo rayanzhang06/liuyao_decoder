@@ -15,9 +15,7 @@ from storage.models import (
     SchoolType
 )
 from agents.base_agent import BaseAgent
-from agents.traditional_agent import TraditionalAgent
-from agents.xiangshu_agent import XiangshuAgent
-from agents.mangpai_agent import MangpaiAgent
+from agents.agent_factory import AgentFactory
 from llm.factory import LLMClientFactory
 
 # 导入文献搜索（Stage 3）
@@ -48,7 +46,6 @@ class DebateOrchestrator:
         if lit_config.get('enabled', False) and LITERATURE_SEARCH_AVAILABLE:
             try:
                 self.literature_search = LiteratureSearch(lit_config)
-                logger.info("文献搜索功能已启用")
             except Exception as e:
                 logger.warning(f"文献搜索初始化失败: {e}")
 
@@ -56,69 +53,44 @@ class DebateOrchestrator:
         self.agents: List[BaseAgent] = []
         self._initialize_agents()
 
-        logger.info("DebateOrchestrator 初始化完成")
-
     def _initialize_agents(self):
         """初始化三个流派Agent"""
-        agent_configs = {
-            'traditional': self.config.get_agent_config('traditional'),
-            'xiangshu': self.config.get_agent_config('xiangshu'),
-            'mangpai': self.config.get_agent_config('mangpai')
-        }
+        agent_types = ['traditional', 'xiangshu', 'mangpai']
 
-        # 创建传统正宗派Agent
-        trad_config = agent_configs['traditional']
-        trad_llm_config = self.config.get_llm_config(trad_config['llm_client'])
-        trad_llm = LLMClientFactory.create(
-            trad_config['llm_client'],
-            **trad_llm_config
-        )
-        self.agents.append(TraditionalAgent(
-            llm_client=trad_llm,
-            prompt_path=trad_config['prompt_file'],
-            literature_search=self.literature_search
-        ))
+        for agent_type in agent_types:
+            # 获取Agent配置
+            agent_config = self.config.get_agent_config(agent_type)
 
-        # 创建象数派Agent
-        xiang_config = agent_configs['xiangshu']
-        xiang_llm_config = self.config.get_llm_config(xiang_config['llm_client'])
-        xiang_llm = LLMClientFactory.create(
-            xiang_config['llm_client'],
-            **xiang_llm_config
-        )
-        self.agents.append(XiangshuAgent(
-            llm_client=xiang_llm,
-            prompt_path=xiang_config['prompt_file'],
-            literature_search=self.literature_search
-        ))
+            # 获取LLM配置
+            llm_config = self.config.get_llm_config(agent_config['llm_client'])
 
-        # 创建盲派Agent
-        mang_config = agent_configs['mangpai']
-        mang_llm_config = self.config.get_llm_config(mang_config['llm_client'])
-        mang_llm = LLMClientFactory.create(
-            mang_config['llm_client'],
-            **mang_llm_config
-        )
-        self.agents.append(MangpaiAgent(
-            llm_client=mang_llm,
-            prompt_path=mang_config['prompt_file'],
-            literature_search=self.literature_search
-        ))
+            # 创建LLM客户端
+            llm_client = LLMClientFactory.create(
+                agent_config['llm_client'],
+                **llm_config
+            )
 
-        logger.info(f"已初始化 {len(self.agents)} 个Agent: {[a.name for a in self.agents]}")
+            # 使用AgentFactory创建Agent
+            agent = AgentFactory.create(
+                agent_type=agent_type,
+                llm_client=llm_client,
+                prompt_path=agent_config['prompt_file'],
+                literature_search=self.literature_search
+            )
 
-    async def run_debate(self, hexagram: HexagramInput) -> DebateContext:
+            self.agents.append(agent)
+
+    async def run_debate(self, hexagram: HexagramInput, progress_callback=None) -> DebateContext:
         """
         运行完整的辩论流程
 
         Args:
             hexagram: 卦象输入
+            progress_callback: 可选的进度回调函数，签名为 (event_type, data) -> None
 
         Returns:
             DebateContext: 包含完整辩论历史的上下文
         """
-        logger.info(f"开始辩论: {hexagram.ben_gua_name} → {hexagram.bian_gua_name}")
-
         # 初始化辩论上下文
         context = DebateContext(
             hexagram=hexagram,
@@ -130,36 +102,54 @@ class DebateOrchestrator:
         )
 
         # Stage 1: 初始解读（Round 0）
-        logger.info("=== Stage 1: 初始解读 (Round 0) ===")
         context.state = DebateState.INITIAL_INTERPRETATION
         initial_round = await self._run_initial_interpretation(hexagram)
         context.history.append(self._round_record_to_dict(initial_round))
         context.current_round = 0
 
+        # 触发回调：初始解读完成
+        if progress_callback:
+            progress_callback("initial_done", {
+                'responses': initial_round.responses,
+                'round': 0
+            })
+
         # Stage 2: 辩论轮次（Round 1-10）
-        logger.info("=== Stage 2: 辩论阶段 ===")
         max_rounds = self.debate_config['max_rounds']
         min_rounds = self.debate_config.get('min_rounds_for_convergence', 3)
 
         for round_num in range(1, max_rounds + 1):
-            logger.info(f"--- 第 {round_num} 轮辩论 ---")
             context.state = DebateState.DEBATING
             context.current_round = round_num
+
+            # 触发回调：本轮开始
+            if progress_callback:
+                progress_callback("round_start", {'round_num': round_num})
 
             # 运行本轮辩论
             debate_round = await self._run_debate_round(hexagram, context.history, round_num)
             context.history.append(self._round_record_to_dict(debate_round))
 
+            # 触发回调：本轮完成
+            if progress_callback:
+                progress_callback("round_done", {
+                    'round_num': round_num,
+                    'responses': debate_round.responses
+                })
+
             # 检查收敛
             if round_num >= min_rounds:
                 should_stop, reason = self._check_convergence(context)
                 if should_stop:
-                    logger.info(f"辩论收敛: {reason} (第 {round_num} 轮)")
+                    # 触发回调：收敛
+                    if progress_callback:
+                        progress_callback("converged", {
+                            'reason': reason,
+                            'round_num': round_num
+                        })
                     context.state = DebateState.CONVERGED
                     context.convergence_score = self._calculate_convergence_score(context)
                     break
-            else:
-                logger.debug(f"轮次 {round_num} < 最小收敛轮次 {min_rounds}，继续辩论")
         else:
             # 达到最大轮次
             logger.warning(f"达到最大轮次 {max_rounds}，停止辩论")
@@ -167,8 +157,6 @@ class DebateOrchestrator:
             context.convergence_score = self._calculate_convergence_score(context)
 
         context.state = DebateState.FINISHED
-        logger.info(f"辩论完成: 共 {context.current_round} 轮，收敛分数: {context.convergence_score:.2f}")
-
         return context
 
     async def _run_initial_interpretation(self, hexagram: HexagramInput) -> RoundRecord:
@@ -181,8 +169,6 @@ class DebateOrchestrator:
         Returns:
             RoundRecord: 包含三个Agent响应的轮次记录
         """
-        logger.info("并行调用三个Agent进行初始解读")
-
         # 使用 ThreadPoolExecutor 并行调用三个Agent的interpret方法（同步方法）
         loop = asyncio.get_event_loop()
         with ThreadPoolExecutor(max_workers=3) as executor:
@@ -208,7 +194,6 @@ class DebateOrchestrator:
                 ))
             else:
                 processed_responses.append(resp)
-                logger.info(f"Agent {resp.agent_name} 初始解读完成，置信度: {resp.confidence}")
 
         return RoundRecord(
             round=0,
@@ -232,18 +217,14 @@ class DebateOrchestrator:
         Returns:
             RoundRecord: 包含三个Agent响应的轮次记录
         """
-        logger.info(f"运行第 {round_number} 轮辩论")
-
         # 顺序调用三个Agent的debate方法（同步方法）
         responses = []
         loop = asyncio.get_event_loop()
         for agent in self.agents:
             try:
-                logger.debug(f"调用 {agent.name} 的辩论方法")
                 # 在线程池中执行同步方法，避免阻塞事件循环
                 resp = await loop.run_in_executor(None, agent.debate, hexagram, history, round_number)
                 responses.append(resp)
-                logger.info(f"Agent {resp.agent_name} 第 {round_number} 轮完成，置信度: {resp.confidence}")
             except Exception as e:
                 logger.error(f"Agent {agent.name} 第 {round_number} 轮失败: {e}")
                 # 创建错误响应
@@ -298,8 +279,6 @@ class DebateOrchestrator:
                     max_conf = max(confidences)
                     min_conf = min(confidences)
                     fluctuation = max_conf - min_conf
-
-                    logger.debug(f"Agent {agent} 置信度波动: {fluctuation:.2f}")
 
                     if fluctuation >= self.debate_config.get('confidence_stability_threshold', 0.5):
                         confidence_stable = False

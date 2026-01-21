@@ -1,5 +1,6 @@
 """报告生成器 - 生成符合prompt_v2.md规范的最终解读报告"""
 import re
+import json
 from typing import Dict, List, Any, Optional
 from loguru import logger
 
@@ -11,13 +12,13 @@ class ReportGenerator:
 
     def __init__(self):
         """初始化报告生成器"""
-        logger.info("ReportGenerator 初始化完成")
+        pass
 
     def generate_report(self, context: DebateContext) -> str:
         """
         生成最终markdown报告
 
-        遵循prompt_v2.md 4.3节的格式规范
+        重最终结论及解析，轻辩论过程
 
         Args:
             context: 辩论上下文
@@ -25,35 +26,25 @@ class ReportGenerator:
         Returns:
             str: Markdown格式的报告
         """
-        logger.info("开始生成最终报告")
-
         sections = []
 
-        # 一、卦象基本信息
+        # 一、卦象基本信息（简洁）
         sections.append(self._generate_section_1(context))
 
-        # 二、核心结论
-        consensus_analysis = self._analyze_consensus(context)
-        sections.append(self._generate_section_2(context, consensus_analysis))
+        # 二、核心结论（强化，作为报告主体）
+        sections.append(self._generate_section_2(context))
 
-        # 三、详细分析
+        # 三、详细解析（基于最终一致观点）
         sections.append(self._generate_section_3(context))
 
-        # 四、流派视角
+        # 四、综合建议（强化）
         sections.append(self._generate_section_4(context))
 
-        # 五、辩论摘要
+        # 五、备注（简化）
         sections.append(self._generate_section_5(context))
-
-        # 六、综合建议
-        sections.append(self._generate_section_6(context))
-
-        # 七、备注
-        sections.append(self._generate_section_7(context))
 
         report = '\n\n'.join(sections)
 
-        logger.info("报告生成完成")
         return report
 
     def _generate_section_1(self, context: DebateContext) -> str:
@@ -77,151 +68,86 @@ class ReportGenerator:
 - 动爻：{dong_yao_count}个
 """
 
-    def _generate_section_2(self, context: DebateContext, consensus: Dict[str, Any]) -> str:
-        """生成第二部分：核心结论"""
+    def _generate_section_2(self, context: DebateContext) -> str:
+        """生成第二部分：核心结论（强化版）"""
         last_round = context.history[-1]
         responses = self._extract_responses_from_round(last_round)
-
-        # 构建结论表格
-        conclusion_table = "| 流派 | 吉凶判断 | 置信度 |\n|------|---------|--------|\n"
-        for resp in responses:
-            conclusion = self._extract_fortune_judgment(resp.content)
-            # 处理 school 字段（可能是枚举或字符串）
-            school_str = self._get_school_chinese_name(resp.school)
-            conclusion_table += f"| {school_str} | {conclusion} | {resp.confidence}/10 |\n"
 
         # 计算共识度
         consensus_level = self._calculate_consensus_level(responses)
 
+        # 提取主流观点（综合各流派的判断）
+        mainstream_judgment = self._extract_mainstream_judgment(responses)
+        mainstream_timing = self._extract_mainstream_timing(responses)
+        mainstream_rationale = self._extract_mainstream_rationale(responses)
+
         return f"""## 二、核心结论
 
-### 2.1 吉凶判断
+### 2.1 综合判断
+
 **【共识度：{consensus_level}】**
 
-{conclusion_table}
+{mainstream_judgment}
 
-**共识依据**：
-{self._extract_consensus_reasons(responses)}
+**核心依据**：
+{mainstream_rationale}
 
 ### 2.2 应期推断
-**【共识度：{self._calculate_timing_consensus(responses)}】**
 
-| 流派 | 应期判断 | 置信度 |
-|------|---------|--------|
-{self._generate_timing_table(responses)}
+{mainstream_timing}
 
 ### 2.3 关键建议
 
-**【共识】**
-{self._extract_common_suggestions(responses)}
-
-**【流派特色建议】**
-{self._extract_school_specific_suggestions(responses)}
+{self._extract_key_suggestions(responses)}
 """
 
     def _generate_section_3(self, context: DebateContext) -> str:
-        """生成第三部分：详细分析"""
+        """生成第三部分：详细解析（基于最终一致观点）"""
         last_round = context.history[-1]
         responses = self._extract_responses_from_round(last_round)
+        hexagram = context.hexagram
 
-        content = "## 三、详细分析\n\n"
+        content = "## 三、详细解析\n\n"
 
         # 3.1 用神分析
         content += "### 3.1 用神分析\n\n"
-        content += "**用神选取**：分析各流派用神选取\n\n"
-
-        for resp in responses:
-            school_name = self._get_school_chinese_name(resp.school)
-            content += f"**{school_name}观点**：\n"
-            content += f"{self._extract_yongshen_analysis(resp.content)}\n\n"
+        content += self._extract_integrated_yongshen_analysis(responses) + "\n\n"
 
         # 3.2 动爻解析
-        content += "### 3.2 动爻解析\n\n"
-        hexagram = context.hexagram
         dong_yao_lines = [line for line in hexagram.lines if line.change_info]
+        if dong_yao_lines:
+            content += "### 3.2 动爻解析\n\n"
+            for line in dong_yao_lines:
+                content += f"**{line.position}爻**（{line.liuqin}·{line.wuxing}）：\n\n"
+                content += self._extract_integrated_dongyao_analysis(responses, line) + "\n\n"
 
-        for line in dong_yao_lines:
-            content += f"**{line.position}爻 {line.liuqin} {line.wuxing}**：\n\n"
-            # 这里可以从各流派的分析中提取对该动爻的解读
-            content += f"- {self._get_school_chinese_name(SchoolType.TRADITIONAL)}：关注其五行生克制化\n"
-            content += f"- {self._get_school_chinese_name(SchoolType.XIANGSHU)}：关注其意象变化\n"
-            content += f"- {self._get_school_chinese_name(SchoolType.MANGPAI)}：关注口诀验证\n\n"
-
-        # 3.3 六神与世应分析
-        content += "### 3.3 六神与世应分析\n\n"
-        content += "（根据各流派分析提取）\n"
+        # 3.3 卦象结构分析
+        content += "### 3.3 卦象结构分析\n\n"
+        content += self._extract_integrated_structure_analysis(responses, hexagram) + "\n\n"
 
         return content
 
     def _generate_section_4(self, context: DebateContext) -> str:
-        """生成第四部分：流派视角"""
-        content = "## 四、流派视角\n\n"
-
+        """生成第四部分：综合建议（强化版）"""
         last_round = context.history[-1]
         responses = self._extract_responses_from_round(last_round)
 
-        for resp in responses:
-            school_name = self._get_school_chinese_name(resp.school)
-            content += f"### 4.1 {school_name}视角\n\n"
-            content += f"{self._extract_full_analysis(resp.content)}\n\n"
+        content = "## 四、综合建议\n\n"
 
-        return content
-
-    def _generate_section_5(self, context: DebateContext) -> str:
-        """生成第五部分：辩论摘要"""
-        content = "## 五、辩论摘要\n\n"
-
-        # 5.1 达成共识的过程
-        content += "### 5.1 达成共识的过程\n\n"
-
-        turning_points = self._find_turning_points(context)
-        for tp in turning_points:
-            content += f"- **第{tp['round']}轮**：{tp['description']}\n"
-        content += "\n"
-
-        # 5.2 主要分歧点
-        content += "### 5.2 主要分歧点\n\n"
-        disagreements = self._find_disagreements(context)
-        if disagreements:
-            for i, disc in enumerate(disagreements, 1):
-                content += f"**分歧{i}**：{disc['description']}\n\n"
-        else:
-            content += "（各流派观点基本一致）\n\n"
-
-        # 5.3 最终置信度
-        content += "### 5.3 最终置信度\n\n"
-        content += "| 流派 | 吉凶判断置信度 | 应期判断置信度 |\n"
-        content += "|------|---------------|---------------|\n"
-
-        confidence_history = self._track_confidence_history(context)
-        for school, confs in confidence_history.items():
-            school_name = self._get_school_chinese_name(school)
-            final_conf = confs[-1] if confs else 0.0
-            content += f"| {school_name} | {final_conf}/10 | {final_conf}/10 |\n"
-
-        return content
-
-    def _generate_section_6(self, context: DebateContext) -> str:
-        """生成第六部分：综合建议"""
-        last_round = context.history[-1]
-        responses = self._extract_responses_from_round(last_round)
-
-        content = "## 六、综合建议\n\n"
-
-        # 6.1 短期行动
-        content += "### 6.1 短期行动（1-3个月）\n\n"
+        # 4.1 短期行动
+        content += "### 4.1 短期行动（1-3个月）\n\n"
         content += self._extract_short_term_suggestions(responses) + "\n\n"
 
-        # 6.2 中期规划
-        content += "### 6.2 中期规划（3-6个月）\n\n"
+        # 4.2 中期规划
+        content += "### 4.2 中期规划（3-6个月）\n\n"
         content += self._extract_mid_term_plans(responses) + "\n\n"
 
-        # 6.3 风险提示
-        content += "### 6.3 风险提示\n\n"
+        # 4.3 风险提示
+        content += "### 4.3 风险提示\n\n"
         content += self._extract_risk_warnings(responses) + "\n\n"
 
-        # 6.4 辅助建议
-        content += "### 6.4 辅助建议\n\n"
+        # 4.4 宜忌建议
+        content += "### 4.4 宜忌建议\n\n"
         content += "**宜**：\n"
         content += self._extract_recommendations(responses, 'dos') + "\n\n"
         content += "**忌**：\n"
@@ -229,20 +155,146 @@ class ReportGenerator:
 
         return content
 
-    def _generate_section_7(self, context: DebateContext) -> str:
-        """生成第七部分：备注"""
-        return f"""## 七、备注
+    def _generate_section_5(self, context: DebateContext) -> str:
+        """生成第五部分：备注（简化版）"""
+        consensus_level = self._calculate_overall_consensus(context)
 
-- **本报告由三流派辩论生成**，共经历 {context.current_round} 轮迭代
-- **共识度**：{self._calculate_overall_consensus(context)}
-- **收敛分数**：{context.convergence_score:.2f}
-- **报告生成时间**：{context.hexagram.datetime}
+        return f"""## 五、备注
+
+**报告说明**：
+- 本报告基于传统正宗派、象数派、盲派三流派的综合分析
+- 共经历 {context.current_round} 轮辩论迭代
+- 整体共识度：{consensus_level}
+- 收敛分数：{context.convergence_score:.2f}
 
 **特别说明**：
-本报告仅供参考，现实仍需努力。六爻解读提供的是趋势分析，具体结果还需看个人努力与实际行动。
+本报告仅供参考，提供的是趋势分析。具体结果还需看个人努力与实际行动。建议结合自身实际情况，理性参考，勿过度依赖。
 """
 
     # ==================== 辅助方法 ====================
+
+    def _extract_mainstream_judgment(self, responses: List[AgentResponse]) -> str:
+        """提取主流吉凶判断（综合各流派观点）"""
+        # 提取所有流派的判断
+        judgments = []
+        for resp in responses:
+            judgment = self._extract_fortune_judgment(resp.content)
+            school_name = self._get_school_chinese_name(resp.school)
+            judgments.append(f"- **{school_name}**：{judgment}（置信度 {resp.confidence}/10）")
+
+        # 尝试生成综合判断
+        avg_confidence = sum(r.confidence for r in responses) / len(responses)
+        if avg_confidence > 7.0:
+            overall = "**总体判断**：吉\n\n"
+        elif avg_confidence > 5.0:
+            overall = "**总体判断**：中平\n\n"
+        else:
+            overall = "**总体判断**：需谨慎\n\n"
+
+        return overall + "各流派观点：\n" + '\n'.join(judgments)
+
+    def _extract_mainstream_timing(self, responses: List[AgentResponse]) -> str:
+        """提取主流应期判断"""
+        timings = []
+        for resp in responses:
+            timing = self._extract_timing(resp.content)
+            school_name = self._get_school_chinese_name(resp.school)
+            timings.append(f"- **{school_name}**：{timing}")
+
+        # 尝试找到共同时间点
+        return '\n'.join(timings)
+
+    def _extract_mainstream_rationale(self, responses: List[AgentResponse]) -> str:
+        """提取主流判断依据"""
+        rationales = []
+        for resp in responses:
+            key_points = self._extract_key_points(resp.content)
+            if key_points:
+                rationales.append(f"- {key_points}")
+
+        if rationales:
+            # 合并相似的论点
+            unique_points = list(set(rationales))
+            return '\n'.join(unique_points[:5])  # 最多5个要点
+        return "- 各流派观点较为一致，均认为卦象显示出明确的趋势"
+
+    def _extract_key_suggestions(self, responses: List[AgentResponse]) -> str:
+        """提取关键建议（优先展示共识建议）"""
+        # 提取共同建议
+        common = self._extract_common_suggestions(responses)
+
+        # 提取流派特色建议
+        school_specific = []
+        for resp in responses:
+            suggestion = self._extract_suggestion(resp.content)
+            school_name = self._get_school_chinese_name(resp.school)
+            if suggestion and suggestion != "根据实际情况灵活应对":
+                school_specific.append(f"- **{school_name}**：{suggestion}")
+
+        result = common
+        if school_specific:
+            result += "\n\n**流派特色建议**：\n" + '\n'.join(school_specific[:2])  # 最多2个
+
+        return result
+
+    def _extract_integrated_yongshen_analysis(self, responses: List[AgentResponse]) -> str:
+        """提取综合用神分析"""
+        analyses = []
+        for resp in responses:
+            analysis = self._extract_yongshen_analysis(resp.content)
+            school_name = self._get_school_chinese_name(resp.school)
+            if analysis and analysis != "（详见完整分析）":
+                analyses.append(f"{analysis}")
+
+        if analyses:
+            # 合并用神分析
+            unique_analyses = list(set(analyses))
+            return '\n\n'.join(unique_analyses)
+        return "各流派对用神选取有不同侧重，综合来看应关注核心要素的生克制化关系。"
+
+    def _extract_integrated_dongyao_analysis(self, responses: List[AgentResponse], line) -> str:
+        """提取综合动爻分析"""
+        analyses = []
+        for resp in responses:
+            # 尝试从内容中提取对该动爻的分析
+            if str(line.position) in resp.content or line.wuxing in resp.content:
+                # 提取相关段落
+                lines_list = resp.content.split('\n')
+                for i, l in enumerate(lines_list):
+                    if str(line.position) in l or line.wuxing in l:
+                        # 提取前后几行
+                        segment = '\n'.join(lines_list[max(0, i-1):min(len(lines_list), i+3)])
+                        analyses.append(f"- {segment.strip()}")
+                        break
+
+        if analyses:
+            return '\n'.join(analyses[:3])  # 最多3个要点
+        return f"- 关注该爻的五行生克关系\n- 结合世应位置判断影响\n- 考虑其在整体卦象中的作用"
+
+    def _extract_integrated_structure_analysis(self, responses: List[AgentResponse], hexagram) -> str:
+        """提取综合卦象结构分析"""
+        # 提取各流派的结构分析
+        structure_points = []
+
+        # 从各流派响应中提取结构相关信息
+        for resp in responses:
+            content = resp.content
+            # 查找关键词
+            keywords = ['世应', '六神', '卦宫', '五行']
+            for keyword in keywords:
+                if keyword in content:
+                    lines_list = content.split('\n')
+                    for i, line in enumerate(lines_list):
+                        if keyword in line:
+                            structure_points.append(f"- {line.strip()}")
+                            break
+
+        if structure_points:
+            unique_points = list(set(structure_points))
+            return '\n'.join(unique_points[:5])  # 最多5个要点
+        return f"""- **世应关系**：{hexagram.ben_gua_name}中世应位置显示出特定的关系模式
+- **卦宫属性**：本卦属于{hexagram.ben_gua_gong}宫，具有该宫的五行特性
+- **整体格局**：结合动爻变化，整体卦象呈现出动态平衡"""
 
     def _analyze_consensus(self, context: DebateContext) -> Dict[str, Any]:
         """分析共识情况"""
@@ -344,16 +396,6 @@ class ReportGenerator:
                     return '\n'.join(lines[max(0, i-1):min(len(lines), i+5)])
         return "（详见完整分析）"
 
-    def _extract_full_analysis(self, content: str) -> str:
-        """提取完整分析"""
-        # 清理和格式化内容
-        lines = content.split('\n')
-        cleaned_lines = []
-        for line in lines:
-            if line.strip():
-                cleaned_lines.append(line)
-        return '\n'.join(cleaned_lines[:20])  # 限制长度
-
     def _track_confidence_history(self, context: DebateContext) -> Dict[SchoolType, List[float]]:
         """追踪置信度历史"""
         history = {SchoolType.TRADITIONAL: [], SchoolType.XIANGSHU: [], SchoolType.MANGPAI: []}
@@ -371,53 +413,6 @@ class ReportGenerator:
                         history[SchoolType.MANGPAI].append(resp.get('confidence', 0.0))
 
         return history
-
-    def _find_turning_points(self, context: DebateContext) -> List[Dict[str, Any]]:
-        """寻找辩论的关键转折点"""
-        turning_points = []
-
-        # 找出置信度变化最大的轮次
-        confidence_history = self._track_confidence_history(context)
-
-        for round_num in range(1, len(context.history)):
-            prev_confs = {}
-            curr_confs = {}
-
-            for school, confs in confidence_history.items():
-                if round_num - 1 < len(confs) and round_num < len(confs):
-                    prev_confs[school] = confs[round_num - 1]
-                    curr_confs[school] = confs[round_num]
-
-            if prev_confs and curr_confs:
-                # 计算平均变化
-                avg_change = sum(
-                    abs(curr_confs[s] - prev_confs[s])
-                    for s in prev_confs.keys()
-                ) / len(prev_confs)
-
-                if avg_change > 1.0:  # 显著变化
-                    turning_points.append({
-                        'round': round_num,
-                        'description': f'观点显著调整 (平均变化 {avg_change:.2f})'
-                    })
-
-        return turning_points
-
-    def _find_disagreements(self, context: DebateContext) -> List[Dict[str, Any]]:
-        """寻找主要分歧点"""
-        # 简化版本：基于置信度差异判断
-        disagreements = []
-
-        last_round = context.history[-1]
-        responses = self._extract_responses_from_round(last_round)
-
-        confidences = [r.confidence for r in responses]
-        if max(confidences) - min(confidences) > 3.0:
-            disagreements.append({
-                'description': '各流派对吉凶判断存在较大分歧'
-            })
-
-        return disagreements
 
     def _extract_short_term_suggestions(self, responses: List[AgentResponse]) -> str:
         """提取短期建议"""
@@ -523,3 +518,65 @@ class ReportGenerator:
                 responses.append(resp_data)
 
         return responses
+
+
+# ==================== Module-level Helper Functions ====================
+
+def extract_fortune_from_report(report_text: str) -> str:
+    """从最终报告中提取吉凶程度
+
+    Args:
+        report_text: 最终报告文本
+
+    Returns:
+        str: 吉凶程度描述（截取到8字符以内）
+    """
+    patterns = [
+        r'吉凶判断[：:]\s*([^\n]+)',
+        r'综合判断[：:]\s*([^\n]+)',
+        r'吉凶[：:]\s*([^\n]+)',
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, report_text)
+        if match:
+            judgment = match.group(1).strip()
+            # Return short form: 吉, 凶, 中吉, etc.
+            if len(judgment) > 8:
+                return judgment[:8] + ".."
+            return judgment
+    return "未知"
+
+
+def compute_consensus_from_history(debate_history_json: str) -> str:
+    """从辩论历史JSON计算共识度
+
+    Args:
+        debate_history_json: 辩论历史JSON字符串
+
+    Returns:
+        str: 共识度等级 (高/中/低/-)
+    """
+    try:
+        history_data = json.loads(debate_history_json)
+        # Extract confidences from last round responses
+        if "rounds" in history_data and history_data["rounds"]:
+            last_round = history_data["rounds"][-1]
+            responses = last_round.get("responses", [])
+            confidences = [r.get("confidence", 0) for r in responses]
+
+            if not confidences:
+                return "-"
+
+            avg_conf = sum(confidences) / len(confidences)
+            variance = sum((c - avg_conf) ** 2 for c in confidences) / len(confidences)
+
+            # Return concise form
+            if avg_conf > 7.5 and variance < 1.0:
+                return "高"
+            elif avg_conf > 6.0 and variance < 2.0:
+                return "中"
+            else:
+                return "低"
+    except Exception:
+        pass
+    return "-"

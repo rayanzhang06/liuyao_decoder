@@ -4,25 +4,20 @@ from typing import Dict, Any
 from loguru import logger
 
 from llm.base import BaseLLMClient
-from llm.openai_client import OpenAIClient
-from llm.anthropic_client import AnthropicClient
-from llm.deepseek_client import DeepSeekClient
-from llm.gemini_client import GeminiClient
-from llm.glm_client import GLMClient
-from llm.kimi_client import KimiClient
+from llm.http_client import UniversalLLMClient
 
 
 class LLMClientFactory:
     """LLM 客户端工厂"""
 
-    # 支持的客户端类型
+    # 支持的客户端类型 - 使用统一的UniversalLLMClient
     SUPPORTED_CLIENTS = {
-        "openai": OpenAIClient,
-        "anthropic": AnthropicClient,
-        "deepseek": DeepSeekClient,
-        "gemini": GeminiClient,
-        "glm": GLMClient,
-        "kimi": KimiClient,
+        "openai": "openai",
+        "anthropic": "anthropic",
+        "deepseek": "deepseek",
+        "gemini": "gemini",
+        "glm": "glm",
+        "kimi": "kimi",
     }
 
     @classmethod
@@ -48,8 +43,6 @@ class LLMClientFactory:
                 f"支持的类型: {', '.join(cls.SUPPORTED_CLIENTS.keys())}"
             )
 
-        client_class = cls.SUPPORTED_CLIENTS[client_type]
-
         # 自动从环境变量读取代理配置（如果没有在 config 中指定）
         if 'http_proxy' not in config and os.getenv('HTTP_PROXY'):
             config['http_proxy'] = os.getenv('HTTP_PROXY')
@@ -64,7 +57,8 @@ class LLMClientFactory:
 
         try:
             logger.info(f"创建 {client_type} 客户端: {config.get('model', 'default')}")
-            return client_class(**config)
+            # 使用统一的UniversalLLMClient
+            return UniversalLLMClient(provider_type=client_type, **config)
         except Exception as e:
             logger.error(f"创建 {client_type} 客户端失败: {e}")
             raise

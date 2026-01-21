@@ -1,7 +1,6 @@
 """Agent 基类"""
 import os
 from typing import List, Dict, Any, Optional
-from abc import ABC, abstractmethod
 from loguru import logger
 
 from llm.base import BaseLLMClient, Message, LLMResponse
@@ -9,8 +8,8 @@ from llm.factory import LLMClientFactory
 from storage.models import HexagramInput, AgentResponse, SchoolType
 
 
-class BaseAgent(ABC):
-    """Agent 抽象基类"""
+class BaseAgent:
+    """Agent 基类 - 统一实现所有流派的核心逻辑"""
 
     def __init__(self,
                  name: str,
@@ -39,7 +38,6 @@ class BaseAgent(ABC):
 
         logger.info(f"初始化 {self.school.value} Agent: {self.name}")
 
-    @abstractmethod
     def interpret(self, hexagram: HexagramInput) -> AgentResponse:
         """
         独立解读卦象
@@ -50,9 +48,47 @@ class BaseAgent(ABC):
         Returns:
             AgentResponse: Agent 响应
         """
-        pass
+        logger.info(f"{self.name} 开始独立解读卦象")
 
-    @abstractmethod
+        # 构建初始解读的 prompt
+        user_prompt = self._build_initial_prompt(hexagram)
+
+        # 调用 LLM
+        llm_response = self._call_llm(user_prompt)
+
+        # 提取置信度
+        confidence = self._extract_confidence(llm_response.content)
+
+        # 构建 Agent 响应
+        response = AgentResponse(
+            agent_name=self.name,
+            school=self.school,
+            content=llm_response.content,
+            confidence=confidence,
+            round_number=0,
+            references=[],  # 初始解读暂无文献引用
+            metadata={
+                "model": llm_response.model,
+                "usage": llm_response.usage,
+                "interpretation_type": "initial"
+            }
+        )
+
+        # 验证响应
+        if not self.validate_response(response):
+            logger.error(f"{self.name} 响应验证失败")
+            return AgentResponse(
+                agent_name=self.name,
+                school=self.school,
+                content="解读失败：响应验证未通过",
+                confidence=0.0,
+                round_number=0,
+                metadata={"error": "validation_failed"}
+            )
+
+        logger.info(f"{self.name} 完成独立解读，置信度: {confidence}/10")
+        return response
+
     def debate(self,
               hexagram: HexagramInput,
               debate_history: List[Dict[str, Any]],
@@ -68,7 +104,46 @@ class BaseAgent(ABC):
         Returns:
             AgentResponse: Agent 响应
         """
-        pass
+        logger.info(f"{self.name} 参与第 {round_number} 轮辩论")
+
+        # 构建辩论的 prompt
+        user_prompt = self._build_debate_prompt(hexagram, debate_history, round_number)
+
+        # 调用 LLM
+        llm_response = self._call_llm(user_prompt)
+
+        # 提取置信度
+        confidence = self._extract_confidence(llm_response.content)
+
+        # 构建响应
+        response = AgentResponse(
+            agent_name=self.name,
+            school=self.school,
+            content=llm_response.content,
+            confidence=confidence,
+            round_number=round_number,
+            references=[],  # TODO: 文献搜索功能后续实现
+            metadata={
+                "model": llm_response.model,
+                "usage": llm_response.usage,
+                "interpretation_type": "debate"
+            }
+        )
+
+        # 验证响应
+        if not self.validate_response(response):
+            logger.error(f"{self.name} 辩论响应验证失败")
+            return AgentResponse(
+                agent_name=self.name,
+                school=self.school,
+                content="辩论发言失败：响应验证未通过",
+                confidence=0.0,
+                round_number=round_number,
+                metadata={"error": "validation_failed"}
+            )
+
+        logger.info(f"{self.name} 完成第 {round_number} 轮辩论，置信度: {confidence}/10")
+        return response
 
     def _load_system_prompt(self) -> str:
         """

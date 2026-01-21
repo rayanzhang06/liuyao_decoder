@@ -10,9 +10,7 @@ sys.path.insert(0, str(project_root))
 
 from config.config_loader import Config
 from llm.factory import LLMClientFactory
-from agents.traditional_agent import TraditionalAgent
-from agents.xiangshu_agent import XiangshuAgent
-from agents.mangpai_agent import MangpaiAgent
+from agents.agent_factory import AgentFactory
 from utils.parser import HexagramParser
 
 
@@ -93,9 +91,10 @@ def test_agent_interpretation():
     xiangshu_prompt = str(prompts_dir / "xiangshu.md")
     mangpai_prompt = str(prompts_dir / "mangpai.md")
 
-    traditional_agent = TraditionalAgent(traditional_llm, traditional_prompt)
-    xiangshu_agent = XiangshuAgent(xiangshu_llm, xiangshu_prompt)
-    mangpai_agent = MangpaiAgent(mangpai_llm, mangpai_prompt)
+    # 使用 AgentFactory 创建 Agent
+    traditional_agent = AgentFactory.create("traditional", traditional_llm, traditional_prompt)
+    xiangshu_agent = AgentFactory.create("xiangshu", xiangshu_llm, xiangshu_prompt)
+    mangpai_agent = AgentFactory.create("mangpai", mangpai_llm, mangpai_prompt)
 
     logger.info("✓ 所有 Agent 初始化完成")
 

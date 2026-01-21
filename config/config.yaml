@@ -2,68 +2,64 @@
 llm:
   default_client: "kimi"
 
+  # 默认LLM配置（使用YAML锚点避免重复）
+  defaults: &llm_defaults
+    temperature: 0.7
+    max_tokens: 8000
+    timeout: 90
+
   clients:
     # 国内提供商（推荐）
     kimi:
       api_key: ${KIMI_API_KEY}
-      model: "kimi-k2-thinking-turbo"  # 最新思维模型
-      temperature: 0.7
-      max_tokens: 8000
-      timeout: 90
+      model: "kimi-k2-thinking-turbo"
+      <<: *llm_defaults
 
     glm:
       api_key: ${GLM_API_KEY}
-      model: "glm-4.7"  # 最新模型
-      temperature: 0.7
-      max_tokens: 8000
-      timeout: 90
+      model: "glm-4.7"
+      <<: *llm_defaults
 
     deepseek:
       api_key: ${DEEPSEEK_API_KEY}
-      model: "deepseek-reasoner"  # 推理模型
-      temperature: 0.7
-      max_tokens: 8000
-      timeout: 90
+      model: "deepseek-reasoner"
+      <<: *llm_defaults
 
     # 国际提供商（需要代理）
     openai:
       api_key: ${OPENAI_API_KEY}
-      model: "gpt-4o"  # 最新最强模型
-      temperature: 0.7
-      max_tokens: 8000
-      timeout: 90
+      model: "gpt-4o"
+      <<: *llm_defaults
 
     anthropic:
       api_key: ${ANTHROPIC_API_KEY}
-      model: "claude-sonnet-4-5-20250929"  # 最新最强模型
-      temperature: 0.7
-      max_tokens: 8000
-      timeout: 90
+      model: "claude-sonnet-4-5-20250929"
+      <<: *llm_defaults
 
     gemini:
       api_key: ${GEMINI_API_KEY}
-      model: "gemini-2.0-flash-exp"  # 最新模型
-      temperature: 0.7
-      max_tokens: 8000
-      timeout: 90
+      model: "gemini-2.0-flash-exp"
+      <<: *llm_defaults
 
 # Agent Configuration
 agents:
-  traditional:
+  # 默认Agent配置
+  defaults: &agent_defaults
     llm_client: "kimi"
     model: "kimi-k2-thinking-turbo"
+
+  traditional:
+    <<: *agent_defaults
     school: "传统正宗派"
     prompt_file: "prompts/traditional.md"
 
   xiangshu:
-    llm_client: "kimi"
-    model: "kimi-k2-thinking-turbo"
+    <<: *agent_defaults
     school: "象数派"
     prompt_file: "prompts/xiangshu.md"
 
   mangpai:
-    llm_client: "kimi"
-    model: "kimi-k2-thinking-turbo"
+    <<: *agent_defaults
     school: "盲派"
     prompt_file: "prompts/mangpai.md"
 
@@ -76,19 +72,19 @@ debate:
 
 # Storage Configuration
 storage:
-  type: "sqlite"  # "sqlite" or "postgresql"
+  type: "sqlite"
   url: "sqlite:///liuyao_decoder.db"
 
 # Literature Search Configuration
 literature_search:
   enabled: true
-  method: "keyword"  # "keyword" or "vector"
+  method: "keyword"
   knowledge_base_path: "knowledge_base"
   top_k: 3
 
 # Logging Configuration
 logging:
-  level: "INFO"
+  level: "WARNING"
   file: "logs/liuyao_decoder.log"
   rotation: "100 MB"
   retention: "30 days"
