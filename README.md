@@ -5,13 +5,18 @@
 ## 功能特点
 
 - **流派多样性**：融合传统正宗派、象数派、盲派三种不同的解读体系
-- **对抗性辩论**：通过 3 轮迭代辩论，相互质疑与验证
+- **对抗性辩论**：通过 10 轮迭代辩论，相互质疑与验证
 - **智能收敛**：3条收敛规则（置信度稳定性、高置信度共识、压倒性证据）
 - **文献搜索**：基于关键词索引，每个流派可搜索本流派的经典文献典籍
 - **持久化存储**：SQLite/PostgreSQL 支持，保存辩论历史和解读报告
 - **多模型支持**：支持 Kimi、GLM、DeepSeek、OpenAI、Anthropic、Google Gemini
 - **代理支持**：为国际 LLM 提供商提供 HTTP/HTTPS 代理配置
 - **交互式界面**：友好的菜单导航，支持文件和文本输入，历史记录管理
+- **模块化架构**：
+  - Agent 工厂模式，动态创建流派 Agent
+  - LLM 适配器模式，统一提供商接口
+  - 核心解码器分离，业务逻辑清晰
+  - CLI 模块化，易于扩展和维护
 
 ## 快速开始
 
@@ -119,43 +124,52 @@ python main.py delete <debate_id>
 liuyao_decoder/
 ├── agents/                     # Agent 模块
 │   ├── base_agent.py          # Agent 基类（含文献搜索）
-│   ├── orchestrator.py        # 辩论编排器
-│   ├── traditional_agent.py   # 传统正宗派
-│   ├── xiangshu_agent.py      # 象数派
-│   └── mangpai_agent.py       # 盲派
+│   ├── agent_factory.py       # Agent 工厂（动态创建流派 Agent）
+│   └── orchestrator.py        # 辩论编排器
+├── cli/                       # CLI 交互界面
+│   ├── commands.py            # 命令处理
+│   └── ui.py                  # 用户界面组件
+├── core/                      # 核心逻辑
+│   └── decoder.py             # 卦象解码器
 ├── llm/                       # LLM 抽象层
-│   ├── base.py               # 抽象基类
-│   ├── kimi_client.py        # Kimi 客户端
-│   ├── glm_client.py         # GLM 客户端
-│   ├── deepseek_client.py    # DeepSeek 客户端
-│   ├── openai_client.py      # OpenAI 客户端（支持代理）
-│   ├── anthropic_client.py   # Anthropic 客户端（支持代理）
-│   ├── gemini_client.py      # Gemini 客户端（支持代理）
-│   └── factory.py            # 客户端工厂
+│   ├── base.py                # 抽象基类
+│   ├── factory.py             # 客户端工厂
+│   ├── http_client.py         # HTTP 客户端（支持代理）
+│   ├── provider_config.py     # 提供商配置
+│   └── providers/             # LLM 提供商适配器
+│       ├── __init__.py
+│       ├── base_adapter.py    # 适配器基类
+│       ├── kimi_adapter.py    # Kimi 适配器
+│       ├── glm_adapter.py     # GLM 适配器
+│       ├── deepseek_adapter.py # DeepSeek 适配器
+│       ├── openai_adapter.py  # OpenAI 适配器
+│       ├── anthropic_adapter.py # Anthropic 适配器
+│       └── gemini_adapter.py  # Gemini 适配器
 ├── utils/                     # 工具模块
-│   ├── parser.py             # 卦象解析器
-│   ├── report_generator.py   # 报告生成器
-│   ├── literature_search.py  # 文献搜索
-│   └── convergence_detector.py # 收敛检测
+│   ├── parser.py              # 卦象解析器
+│   ├── report_generator.py    # 报告生成器
+│   ├── literature_search.py   # 文献搜索
+│   ├── convergence_detector.py # 收敛检测
+│   └── text_utils.py          # 文本处理工具
 ├── storage/                   # 存储模块
-│   ├── models.py             # 数据模型（Pydantic + SQLAlchemy ORM）
-│   ├── database.py           # 数据库管理器
-│   └── migrations/           # Alembic 数据库迁移
+│   ├── models.py              # 数据模型（Pydantic + SQLAlchemy ORM）
+│   ├── database.py            # 数据库管理器
+│   └── migrations/            # Alembic 数据库迁移
 ├── prompts/                   # Prompt 模板
-│   ├── traditional.md        # 传统正宗派提示
-│   ├── xiangshu.md           # 象数派提示
-│   └── mangpai.md            # 盲派提示
+│   ├── traditional.md         # 传统正宗派提示
+│   ├── xiangshu.md            # 象数派提示
+│   └── mangpai.md             # 盲派提示
 ├── knowledge_base/            # 文献库
-│   ├── traditional/          # 传统正宗派文献
-│   ├── xiangshu/             # 象数派文献
-│   └── mangpai/              # 盲派文献
+│   ├── traditional/           # 传统正宗派文献
+│   ├── xiangshu/              # 象数派文献
+│   └── mangpai/               # 盲派文献
 ├── config/
-│   └── config.yaml           # 配置文件
+│   └── config.yaml            # 配置文件
 ├── tests/                     # 测试
-│   ├── test_llm_clients.py   # LLM 客户端测试
-│   └── integration/          # 集成测试
+│   ├── test_llm_clients.py    # LLM 客户端测试
+│   └── integration/           # 集成测试
 ├── examples/                  # 示例
-│   └── sample_hexagram.txt   # 示例卦象
+│   └── sample_hexagram.txt    # 示例卦象
 ├── main.py                    # CLI 主入口
 ├── requirements.txt           # Python 依赖
 └── README.md                  # 本文件
@@ -272,7 +286,7 @@ DATABASE_URL=postgresql://user:password@localhost/liuyao_decoder
 - [x] 配置加载模块
 - [x] Agent 基类和三个流派实现
 - [x] 辩论编排器（DebateOrchestrator）
-  - 3轮辩论管理
+  - 10轮辩论管理
   - 并行初始解读
   - 顺序辩论流程
   - 3条收敛规则
@@ -282,7 +296,23 @@ DATABASE_URL=postgresql://user:password@localhost/liuyao_decoder
 - [x] CLI 入口（main.py）
   - decode, decode-text, list, view, delete, test-config 命令
 
-### ✅ 阶段 2：数据库持久化（已完成）
+### ✅ 阶段 2：架构重构（已完成）
+- [x] LLM 适配器模式重构
+  - 从独立客户端文件迁移到适配器架构
+  - 统一的 HTTP 客户端支持代理
+  - 提供商配置集中管理
+- [x] Agent 工厂模式
+  - 动态创建流派 Agent
+  - 消除冗余代码
+- [x] CLI 模块化
+  - 独立的命令处理模块（cli/commands.py）
+  - 用户界面组件（cli/ui.py）
+- [x] 核心解码器模块
+  - 分离核心业务逻辑
+- [x] 文本工具模块
+  - 统一的文本处理工具
+
+### ✅ 阶段 3：数据库持久化（已完成）
 - [x] SQLAlchemy ORM 模型
 - [x] 数据库管理器（DatabaseManager）
   - CRUD 操作
@@ -292,7 +322,7 @@ DATABASE_URL=postgresql://user:password@localhost/liuyao_decoder
 - [x] SQLite 默认支持
 - [x] PostgreSQL 可选支持
 
-### ✅ 阶段 3：文献搜索功能（已完成）
+### ✅ 阶段 4：文献搜索功能（已完成）
 - [x] 知识库目录结构（按流派组织）
 - [x] 文献搜索服务（LiteratureSearch）
   - 关键词索引（jieba 分词）
@@ -320,7 +350,7 @@ DATABASE_URL=postgresql://user:password@localhost/liuyao_decoder
    - 3 个 Agent 并行独立解读卦象
    - 每个输出初始结论和置信度（0-10）
 
-2. **Round 1-3 - 对抗辩论**
+2. **Round 1-10 - 对抗辩论**
    - 顺序执行，每个 Agent 依次发言
    - 可以保持或调整自己的观点
    - 回应其他 Agent 的质疑
@@ -416,6 +446,7 @@ python main.py <command> --help
 - **中文处理**: jieba
 - **日志**: loguru
 - **测试**: pytest
+- **架构模式**: Factory Pattern, Adapter Pattern, Composition over Inheritance
 
 ## 开发建议
 
@@ -439,6 +470,23 @@ HTTPS_PROXY=http://127.0.0.1:7891
 ### 4. 调整辩论参数
 
 在 `config/config.yaml` 中调整 `debate.max_rounds` 和收敛阈值。
+
+### 5. 添加新的 LLM 提供商
+
+使用适配器模式，轻松添加新的提供商：
+
+1. 在 `llm/providers/` 创建新的适配器类，继承 `BaseLLMAdapter`
+2. 实现必需的方法：`chat()`, `embeddings()`（可选）
+3. 在 `llm/factory.py` 注册新的提供商
+4. 在 `config/config.yaml` 添加配置
+
+### 6. 添加新的六爻流派
+
+使用 Agent 工厂模式，添加新的流派：
+
+1. 在 `prompts/` 创建新的提示模板
+2. 在 `config/config.yaml` 添加流派配置
+3. 使用 `AgentFactory.create_agent()` 动态创建
 
 ## 已知限制
 
