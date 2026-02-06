@@ -14,9 +14,8 @@ from storage.models import (
     AgentResponse,
     SchoolType
 )
-from agents.base_agent import BaseAgent
 from agents.agent_factory import AgentFactory
-from llm.factory import LLMClientFactory
+from agents.base_agent import BaseAgent
 
 # 导入文献搜索（Stage 3）
 try:
@@ -58,23 +57,9 @@ class DebateOrchestrator:
         agent_types = ['traditional', 'xiangshu', 'mangpai']
 
         for agent_type in agent_types:
-            # 获取Agent配置
-            agent_config = self.config.get_agent_config(agent_type)
-
-            # 获取LLM配置
-            llm_config = self.config.get_llm_config(agent_config['llm_client'])
-
-            # 创建LLM客户端
-            llm_client = LLMClientFactory.create(
-                agent_config['llm_client'],
-                **llm_config
-            )
-
-            # 使用AgentFactory创建Agent
-            agent = AgentFactory.create(
+            agent = AgentFactory.create_from_config(
+                config=self.config,
                 agent_type=agent_type,
-                llm_client=llm_client,
-                prompt_path=agent_config['prompt_file'],
                 literature_search=self.literature_search
             )
 

@@ -2,7 +2,9 @@
 from typing import Optional
 from loguru import logger
 
+from config.config_loader import Config
 from llm.base import BaseLLMClient
+from llm.factory import LLMClientFactory
 from storage.models import SchoolType
 from agents.base_agent import BaseAgent
 
@@ -66,6 +68,35 @@ class AgentFactory:
         logger.info(f"创建{config['display_name']} Agent，使用 LLM: {llm_client.__class__.__name__}")
 
         return agent
+
+    @classmethod
+    def create_from_config(cls,
+                           config: Config,
+                           agent_type: str,
+                           literature_search: Optional['LiteratureSearch'] = None) -> BaseAgent:
+        """
+        基于 Config 创建 Agent（包含 LLM 初始化）
+
+        Args:
+            config: 配置对象
+            agent_type: Agent类型
+            literature_search: 可选的文献搜索实例
+
+        Returns:
+            BaseAgent: Agent实例
+        """
+        agent_config = config.get_agent_config(agent_type)
+        llm_client_name = agent_config['llm_client']
+        llm_config = config.get_llm_config(llm_client_name)
+        llm_client = LLMClientFactory.create(llm_client_name, **llm_config)
+        prompt_path = config.get_prompt_file_path(agent_type)
+
+        return cls.create(
+            agent_type=agent_type,
+            llm_client=llm_client,
+            prompt_path=prompt_path,
+            literature_search=literature_search
+        )
 
     @classmethod
     def get_supported_types(cls) -> list:

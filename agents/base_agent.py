@@ -1,10 +1,8 @@
 """Agent 基类"""
-import os
 from typing import List, Dict, Any, Optional
 from loguru import logger
 
 from llm.base import BaseLLMClient, Message, LLMResponse
-from llm.factory import LLMClientFactory
 from storage.models import HexagramInput, AgentResponse, SchoolType
 
 

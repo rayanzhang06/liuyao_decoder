@@ -1,15 +1,9 @@
 """测试 Agent 独立解读功能"""
 import os
-import sys
-from pathlib import Path
 from loguru import logger
-
-# 添加项目根目录到 Python 路径
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
+import pytest
 
 from config.config_loader import Config
-from llm.factory import LLMClientFactory
 from agents.agent_factory import AgentFactory
 from utils.parser import HexagramParser
 
@@ -36,6 +30,7 @@ SAMPLE_HEXAGRAM_TEXT = """
 """
 
 
+@pytest.mark.e2e
 def test_agent_interpretation():
     """测试三个 Agent 的独立解读功能"""
 
@@ -55,46 +50,24 @@ def test_agent_interpretation():
     logger.info(f"卦象解析成功: {hexagram.ben_gua_name} → {hexagram.bian_gua_name}")
     logger.info(f"问题: {hexagram.question}")
 
-    # 3. 创建 LLM 客户端
-    logger.info("\n3. 创建 LLM 客户端...")
+    # 3. 检查环境变量
+    agent_types = ["traditional", "xiangshu", "mangpai"]
+    required_envs = set()
+    for agent_type in agent_types:
+        llm_client = config_loader.get_agent_config(agent_type).get("llm_client")
+        if llm_client:
+            key_name = f"{llm_client.upper()}_API_KEY"
+            required_envs.add(key_name)
 
-    # 为每个 Agent 获取对应的 LLM 客户端配置
-    traditional_config = config_loader.get_agent_config("traditional")
-    xiangshu_config = config_loader.get_agent_config("xiangshu")
-    mangpai_config = config_loader.get_agent_config("mangpai")
+    missing = [name for name in required_envs if not os.getenv(name)]
+    if missing:
+        pytest.skip(f"缺少 API Key: {', '.join(sorted(missing))}")
 
-    # 获取 LLM 客户端类型
-    traditional_llm_type = traditional_config.get("llm_client")
-    xiangshu_llm_type = xiangshu_config.get("llm_client")
-    mangpai_llm_type = mangpai_config.get("llm_client")
-
-    # 获取 LLM 客户端配置
-    traditional_llm_config = config_loader.get_llm_config(traditional_llm_type)
-    xiangshu_llm_config = config_loader.get_llm_config(xiangshu_llm_type)
-    mangpai_llm_config = config_loader.get_llm_config(mangpai_llm_type)
-
-    # 创建 LLM 客户端实例
-    traditional_llm = LLMClientFactory.create(traditional_llm_type, **traditional_llm_config)
-    xiangshu_llm = LLMClientFactory.create(xiangshu_llm_type, **xiangshu_llm_config)
-    mangpai_llm = LLMClientFactory.create(mangpai_llm_type, **mangpai_llm_config)
-
-    logger.info(f"传统正宗派使用: {traditional_llm.__class__.__name__}")
-    logger.info(f"象数派使用: {xiangshu_llm.__class__.__name__}")
-    logger.info(f"盲派使用: {mangpai_llm.__class__.__name__}")
-
-    # 4. 创建三个 Agent
+    # 4. 创建三个 Agent（使用统一工厂）
     logger.info("\n4. 初始化三个 Agent...")
-
-    # 获取 prompt 文件路径
-    prompts_dir = project_root / "prompts"
-    traditional_prompt = str(prompts_dir / "traditional.md")
-    xiangshu_prompt = str(prompts_dir / "xiangshu.md")
-    mangpai_prompt = str(prompts_dir / "mangpai.md")
-
-    # 使用 AgentFactory 创建 Agent
-    traditional_agent = AgentFactory.create("traditional", traditional_llm, traditional_prompt)
-    xiangshu_agent = AgentFactory.create("xiangshu", xiangshu_llm, xiangshu_prompt)
-    mangpai_agent = AgentFactory.create("mangpai", mangpai_llm, mangpai_prompt)
+    traditional_agent = AgentFactory.create_from_config(config_loader, "traditional")
+    xiangshu_agent = AgentFactory.create_from_config(config_loader, "xiangshu")
+    mangpai_agent = AgentFactory.create_from_config(config_loader, "mangpai")
 
     logger.info("✓ 所有 Agent 初始化完成")
 
@@ -161,18 +134,4 @@ def test_agent_interpretation():
     logger.info("测试完成")
     logger.info("=" * 60)
 
-    return results
-
-
-if __name__ == "__main__":
-    # 配置日志
-    logger.remove()  # 移除默认处理器
-    logger.add(sys.stdout, level="INFO", format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <level>{message}</level>")
-
-    # 运行测试
-    try:
-        results = test_agent_interpretation()
-        sys.exit(0 if all(r["success"] for r in results) else 1)
-    except Exception as e:
-        logger.exception(f"测试执行失败: {e}")
-        sys.exit(1)
+    assert all(r["success"] for r in results)
